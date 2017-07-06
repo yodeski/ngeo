@@ -700,3 +700,12 @@ gmfx.PermalinkListenerKeys;
  * }}
  */
 gmfx.NominatimSearchResult;
+
+/**
+ * @typedef {{
+ *     display_name: (string),
+ *     lon: (number),
+ *     lat: (number)
+ * }}
+ */
+gmfx.NominatimSearchResponseResult;
