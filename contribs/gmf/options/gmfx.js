@@ -670,3 +670,11 @@ gmfx.OpenPopup_
  * }}
  */
 gmfx.PermalinkListenerKeys;
+
+/**
+ * @typedef {{
+ *     name: (string),
+ *     coordinate: (ol.Coordinate)
+ * }}
+ */
+gmfx.NominatimSearchResult;
