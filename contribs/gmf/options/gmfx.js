@@ -703,3 +703,12 @@ gmfx.RoutingVia;
  * }}
  */
 gmfx.RoutingProfile;
+
+/**
+ * @typedef {{
+ *     backendUrl: (string|undefined),
+ *     profiles: (Array.<gmfx.RoutingProfile>|undefined),
+ *     searchDefaultParams: (Object.<string, string>|undefined)
+ * }}
+ */
+gmfx.RoutingOptions;
