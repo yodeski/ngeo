@@ -10,24 +10,6 @@
     </gmf-routing-feature>
   </div>
 
-    <div class="gmf-routing-vias form-group" ng-repeat="(index, via) in routeCtrl.viaArray">
-      <div class="form-inline">
-        <div class="form-group">
-          <gmf-routing-feature
-                  gmf-routing-feature-map="routeCtrl.map"
-                  gmf-routing-feature-feature="via.feature"
-                  gmf-routing-feature-fill-color="routeCtrl.colors['via.fill']"
-                  gmf-routing-feature-stroke-color="routeCtrl.colors['via.stroke']"
-                  gmf-routing-feature-on-change="routeCtrl.handleChange"
-                  gmf-routing-feature-search-default-params="routeCtrl.searchDefaultParams">
-          </gmf-routing-feature>
-        </div>
-        <button type="button" class="btn btn-primary delete-via" ng-click="routeCtrl.deleteVia(index)">
-          <span class="fa fa-trash-o"></span>
-        </button>
-      </div>
-    </div>
-
   <div class="gmf-routing-destination form-group">
     <gmf-routing-feature
             gmf-routing-feature-map="routeCtrl.map"
