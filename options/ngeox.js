@@ -2021,6 +2021,15 @@ ngeox.numberCoordinates;
 ngeox.dmsCoordinates;
 
 /**
+ * Format a duration in seconds to a more readable form.
+ * Arguments:
+ * - duration The duration in seconds.
+ * @typedef {function(number): string}
+ */
+ngeox.duration;
+
+
+/**
  * Namespace.
  * @type {Object}
  */
