@@ -55,7 +55,7 @@ gmf.module.component('gmfRoutingFeature', gmf.routingFeatureComponent);
 
 
 /**
-(??)
+ * @param {!angular.Scope} $scope Angular scope.
  * @param {angular.$timeout} $timeout Angular timeout service.
  * @param {!angular.$q} $q Angular q service
  * @param {!gmf.NominatimService} gmfNominatimService service for Nominatim
@@ -65,7 +65,13 @@ gmf.module.component('gmfRoutingFeature', gmf.routingFeatureComponent);
  * @ngdoc controller
  * @ngname GmfRoutingFeatureController
  */
-(??)
+gmf.GmfRoutingFeatureController = function($scope, $timeout, $q, gmfNominatimService) {
+
+  /**
+   * @type {!angular.Scope}
+   * @private
+   */
+  this.scope_ = $scope;
 
   /**
    * @type {angular.$timeout}
@@ -205,7 +211,15 @@ gmf.GmfRoutingFeatureController.prototype.$onInit = function() {
     this.vectorSource_.clear();
     this.snapFeature_(feature);
   });
-(??)
+
+  this.scope_.$watch(
+    () => this.feature,
+    (newVal, oldVal) => {
+      if (newVal) {
+        this.onFeatureChange_();
+      }
+    }
+  );
 };
 
 gmf.GmfRoutingFeatureController.prototype.$onDestroy = function() {
