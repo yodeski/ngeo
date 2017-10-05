@@ -55,6 +55,7 @@ gmf.module.component('gmfRoutingFeature', gmf.routingFeatureComponent);
 
 
 /**
+(??)
  * @param {angular.$timeout} $timeout Angular timeout service.
  * @param {!angular.$q} $q Angular q service
  * @param {!gmf.NominatimService} gmfNominatimService service for Nominatim
@@ -64,7 +65,7 @@ gmf.module.component('gmfRoutingFeature', gmf.routingFeatureComponent);
  * @ngdoc controller
  * @ngname GmfRoutingFeatureController
  */
-gmf.GmfRoutingFeatureController = function($timeout, $q, gmfNominatimService) {
+(??)
 
   /**
    * @type {angular.$timeout}
@@ -204,6 +205,7 @@ gmf.GmfRoutingFeatureController.prototype.$onInit = function() {
     this.vectorSource_.clear();
     this.snapFeature_(feature);
   });
+(??)
 };
 
 gmf.GmfRoutingFeatureController.prototype.$onDestroy = function() {
@@ -253,16 +255,21 @@ gmf.GmfRoutingFeatureController.prototype.setFeature_ = function(coordinate, lab
   if (label === '') {
     label = transformedCoordinate.join('/');
   }
-  const newFeature = new ol.Feature({
+  this.feature = new ol.Feature({
     geometry: new ol.geom.Point(transformedCoordinate),
     name: label
   });
-  this.featureLabel = label;
+};
 
+gmf.GmfRoutingFeatureController.prototype.onFeatureChange_ = function() {
+  // update label
+  this.featureLabel = /** @type{string} */(this.feature.get('name') || '');
+
+  //update vector source
   this.vectorSource_.clear();
-  this.feature = newFeature;
   this.vectorSource_.addFeature(this.feature);
 
+  // notify others
   if (this.onChange) {
     this.timeout_(() => {
       this.onChange(this.feature);

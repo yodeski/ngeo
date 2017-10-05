@@ -67,14 +67,13 @@ gmf.module.component('gmfRouting', gmf.routingComponent);
  * @param {!gmf.RoutingService} gmfRoutingService service for OSRM routing
  * @param {!gmf.NominatimService} gmfNominatimService service for Nominatim
  * @param {!angular.$q} $q Angular q service
- * @param {!angular.$filter} $filter Angular filter
  * @constructor
  * @private
  * @ngInject
  * @ngdoc controller
  * @ngname GmfRoutingController
  */
-gmf.GmfRoutingController = function($injector, $scope, gmfRoutingService, gmfNominatimService, $q, $filter) {
+gmf.GmfRoutingController = function($injector, $scope, gmfRoutingService, gmfNominatimService, $q) {
 
   /**
    * @type {angular.Scope}
@@ -129,12 +128,6 @@ gmf.GmfRoutingController = function($injector, $scope, gmfRoutingService, gmfNom
    * @private
    */
   this.$q_ = $q;
-
-  /**
-   * The format function
-   * @type {ngeox.unitPrefix}
-   */
-  this.format_ = $filter('ngeoUnitPrefix');
 
   /**
    * @type {ol.Map}
@@ -222,11 +215,11 @@ gmf.GmfRoutingController = function($injector, $scope, gmfRoutingService, gmfNom
   });
 
   /**
-   * Formatted distance of route
-   * @type {string}
+   * Distance of route in meters
+   * @type {number}
    * @export
    */
-  this.routeDistance = '';
+  this.routeDistance = 0;
 
   /**
    * Duration of route in minutes.
@@ -271,7 +264,7 @@ gmf.GmfRoutingController.prototype.handleActiveChange_ = function(active) {
     this.startFeature_ = null;
     this.targetFeature_ = null;
     this.viaArray = [];
-    this.routeDistance = '';
+    this.routeDistance = 0;
     this.routeDuration = null;
     this.routeSource_.clear();
     this.errorMessage = '';
@@ -299,7 +292,7 @@ gmf.GmfRoutingController.prototype.reverseRoute = function() {
   // swap start and target
   const tmpFeature = this.startFeature_;
   this.startFeature_ = this.targetFeature_;
-  this.targetFeature_ = tmpFeature; // FIXME: does not update the feature layers, markers stay the same color
+  this.targetFeature_ = tmpFeature;
 
   // reverse vias
   this.viaArray = this.viaArray.reverse();
@@ -355,8 +348,8 @@ gmf.GmfRoutingController.prototype.calculateRoute = function() {
       // recenter map on route
       this.map.getView().fit(this.routeSource_.getExtent());
 
-      this.routeDistance = this.format_(resp.data.routes[0].distance, 'm');
-      this.routeDuration = Math.ceil(resp.data.routes[0].duration / 60);
+      this.routeDistance = parseInt(resp.data.routes[0].distance, 10);
+      this.routeDuration = resp.data.routes[0].duration;
 
       // TODO draw line between markes and end of route
     }).bind(this);

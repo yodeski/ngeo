@@ -165,6 +165,12 @@ gmf.AbstractDesktopController = function(config, $scope, $injector) {
    * @type {boolean}
    * @export
    */
+  this.routingfeatureActive = false;
+
+  /**
+   * @type {boolean}
+   * @export
+   */
   this.googleStreetViewActive = false;
 
   /**
