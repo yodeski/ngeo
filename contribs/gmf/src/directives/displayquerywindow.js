@@ -1,7 +1,6 @@
 goog.provide('gmf.displayquerywindowComponent');
 
 goog.require('gmf');
-goog.require('ngeo.FeatureOverlay');
 goog.require('ngeo.FeatureOverlayMgr');
 /** @suppress {extraRequire} - required for `ngeoQueryResult` */
 goog.require('ngeo.MapQuerent');
@@ -87,7 +86,7 @@ gmf.module.component('gmfDisplayquerywindow', gmf.displayquerywindowComponent);
 /**
  * @param {!angular.Scope} $scope Angular scope.
  * @param {!ngeox.QueryResult} ngeoQueryResult ngeo query result.
- * @param {!ngeo.FeatureHelper} ngeoFeatureHelper the ngeo FeatureHelper service.
+ * @param {!ngeo.MapQuerent} ngeoMapQuerent ngeo map querent service.
  * @param {!ngeo.FeatureOverlayMgr} ngeoFeatureOverlayMgr The ngeo feature
  *     overlay manager service.
  * @constructor
@@ -96,8 +95,8 @@ gmf.module.component('gmfDisplayquerywindow', gmf.displayquerywindowComponent);
  * @ngdoc controller
  * @ngname GmfDisplayquerywindowController
  */
-gmf.DisplayquerywindowController = function($scope, ngeoQueryResult,
-  ngeoFeatureHelper, ngeoFeatureOverlayMgr) {
+gmf.DisplayquerywindowController = function($scope, ngeoQueryResult, ngeoMapQuerent,
+  ngeoFeatureOverlayMgr) {
 
   /**
    * @type {boolean}
@@ -137,10 +136,10 @@ gmf.DisplayquerywindowController = function($scope, ngeoQueryResult,
   };
 
   /**
-   * @type {ngeo.FeatureHelper}
-   * @export
+   * @type {!ngeo.MapQuerent}
+   * @private
    */
-  this.ngeoFeatureHelper_ = ngeoFeatureHelper;
+  this.ngeoMapQuerent_ = ngeoMapQuerent;
 
   /**
    * @type {?ngeox.QueryResultSource}
@@ -149,7 +148,7 @@ gmf.DisplayquerywindowController = function($scope, ngeoQueryResult,
   this.selectedSource = null;
 
   /**
-   * @type {ol.Collection}
+   * @type {!ol.Collection}
    * @private
    */
   this.features_ = new ol.Collection();
@@ -161,26 +160,19 @@ gmf.DisplayquerywindowController = function($scope, ngeoQueryResult,
   this.ngeoFeatureOverlayMgr_ = ngeoFeatureOverlayMgr;
 
   /**
-   * @type {ngeo.FeatureOverlay}
-   * @private
-   */
-  this.highlightFeatureOverlay_ = ngeoFeatureOverlayMgr.getFeatureOverlay();
-
-  /**
-   * @type {ol.Collection}
+   * @type {!ol.Collection}
    * @private
    */
   this.highlightFeatures_ = new ol.Collection();
-  this.highlightFeatureOverlay_.setFeatures(this.highlightFeatures_);
 
   /**
-   * @type {ngeox.QueryResultSource?}
+   * @type {?ngeox.QueryResultSource}
    * @export
    */
   this.source = null;
 
   /**
-   * @type {ol.Feature}
+   * @type {?ol.Feature}
    * @export
    */
   this.feature = null;
@@ -235,13 +227,15 @@ gmf.DisplayquerywindowController.prototype.$onInit = function() {
   this.sourcesFilter = this.showUnqueriedLayers_ ? {} : {'queried': true};
 
   const featuresOverlay = this.ngeoFeatureOverlayMgr_.getFeatureOverlay();
+  featuresOverlay.setFeatures(this.features_);
   const featuresStyle = this['featuresStyleFn']();
   if (featuresStyle !== undefined) {
     goog.asserts.assertInstanceof(featuresStyle, ol.style.Style);
     featuresOverlay.setStyle(featuresStyle);
   }
-  featuresOverlay.setFeatures(this.features_);
 
+  const highlightFeaturesOverlay = this.ngeoFeatureOverlayMgr_.getFeatureOverlay();
+  highlightFeaturesOverlay.setFeatures(this.highlightFeatures_);
   let highlightFeatureStyle = this['selectedFeatureStyleFn']();
   if (highlightFeatureStyle !== undefined) {
     goog.asserts.assertInstanceof(highlightFeatureStyle, ol.style.Style);
@@ -254,7 +248,7 @@ gmf.DisplayquerywindowController.prototype.$onInit = function() {
       stroke
     });
   }
-  this.highlightFeatureOverlay_.setStyle(highlightFeatureStyle);
+  highlightFeaturesOverlay.setStyle(highlightFeatureStyle);
 };
 
 
@@ -367,10 +361,10 @@ gmf.DisplayquerywindowController.prototype.updateQueryResult_ = function(queryRe
   this.ngeoQueryResult.sources.length = 0;
   for (let i = 0; i < queryResult.sources.length; i++) {
     const source = queryResult.sources[i];
-    source.features = source.features.filter(function(feature) {
+    source.features = source.features.filter((feature) => {
       goog.asserts.assert(feature);
-      return !ol.obj.isEmpty(this.ngeoFeatureHelper_.getFilteredFeatureValues(feature));
-    }, this);
+      return !ol.obj.isEmpty(ngeo.FeatureHelper.getFilteredFeatureValues(feature));
+    });
     this.ngeoQueryResult.sources.push(source);
     this.ngeoQueryResult.total += source.features.length;
   }
@@ -419,7 +413,7 @@ gmf.DisplayquerywindowController.prototype.getFeatureValues = function() {
   if (!this.feature) {
     return null;
   }
-  return this.ngeoFeatureHelper_.getFilteredFeatureValues(this.feature);
+  return ngeo.FeatureHelper.getFilteredFeatureValues(this.feature);
 };
 
 
@@ -484,6 +478,7 @@ function(opt_lastFeature) {
 gmf.DisplayquerywindowController.prototype.close = function() {
   this.open = false;
   this.clear();
+  this.ngeoMapQuerent_.clear();
 };
 
 

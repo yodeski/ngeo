@@ -3,7 +3,7 @@
 let path = require('path');
 let url = require('url');
 
-let closure = require('closure-util');
+let closure = require('@camptocamp/closure-util');
 let nomnom = require('nomnom');
 let gaze = require('gaze');
 let exec = require('child_process').exec;
@@ -53,6 +53,7 @@ let manager = new closure.Manager({
     'contribs/**/src/**/*.js',
     'externs/*.js',
     'node_modules/openlayers/src/**/*.js',
+    'node_modules/ol-cesium/src/**/*.js',
     'node_modules/openlayers/build/ol.ext/*.js'
   ],
   main: ['examples/*.js', 'contribs/**/examples/*.js', 'contribs/**/apps/**/*.js']

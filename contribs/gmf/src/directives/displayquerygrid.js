@@ -5,7 +5,6 @@ goog.require('ngeo.CsvDownload');
 goog.require('ngeo.GridConfig');
 /** @suppress {extraRequire} */
 goog.require('ngeo.gridComponent');
-goog.require('ngeo.FeatureOverlay');
 goog.require('ngeo.FeatureOverlayMgr');
 /** @suppress {extraRequire} - required for `ngeoQueryResult` */
 goog.require('ngeo.MapQuerent');
@@ -53,6 +52,10 @@ function gmfDisplayquerygridTemplateUrl($element, $attrs, gmfDisplayquerygridTem
  * Features displayed on the map use a default style but you can override these
  * styles by passing ol.style.Style objects as attributes of this component.
  *
+ * Note: the following ng-class need to be present in the interface <body> element to display the footer
+ * when the grid is active (initially there should be the code for the profile tool):
+ *      <body ng-class="{'gmf-profile-chart-active': !!profileChartActive, 'gmf-query-grid-active': !!queryGridActive}">
+ *
  * Example:
  *
  *      <gmf-displayquerygrid
@@ -71,7 +74,7 @@ function gmfDisplayquerygridTemplateUrl($element, $attrs, gmfDisplayquerygridTem
  *     empty columns be hidden? Default: `false`.
  * @htmlAttribute {number?} gmf-displayquerygrid-maxrecenterzoom Optional. Maximum
  *     zoom-level to use when zooming to selected features.
- * @htmlAttribute {gmfx.GridMergeTabs?} gmf-displayquerygrid-gridmergetabas Optional.
+ * @htmlAttribute {gmfx.GridMergeTabs?} gmf-displayquerygrid-gridmergetabs Optional.
  *     Configuration to merge grids with the same attributes into a single grid.
  *
  * @ngdoc component
@@ -82,7 +85,7 @@ gmf.displayquerygridComponent = {
   bindings: {
     'active': '=?gmfDisplayquerygridActive',
     'featuresStyleFn': '&gmfDisplayquerygridFeaturesstyle',
-    'selectedFeatureStyleFn': '&gmfDisplayquerygridSourceselectedfeaturestyle',
+    'selectedFeatureStyleFn': '&gmfDisplayquerygridSelectedfeaturestyle',
     'getMapFn': '&gmfDisplayquerygridMap',
     'removeEmptyColumnsFn': '&?gmfDisplayquerygridRemoveemptycolumns',
     'maxResultsFn': '&?gmfDisplayquerygridMaxresults',
@@ -99,21 +102,22 @@ gmf.module.component('gmfDisplayquerygrid', gmf.displayquerygridComponent);
 /**
  * Controller for the query grid.
  *
- * @param {angular.$injector} $injector Main injector.
+ * @param {!angular.$injector} $injector Main injector.
  * @param {!angular.Scope} $scope Angular scope.
- * @param {ngeox.QueryResult} ngeoQueryResult ngeo query result.
- * @param {ngeo.FeatureOverlayMgr} ngeoFeatureOverlayMgr The ngeo feature
+ * @param {!ngeox.QueryResult} ngeoQueryResult ngeo query result.
+ * @param {!ngeo.MapQuerent} ngeoMapQuerent ngeo map querent service.
+ * @param {!ngeo.FeatureOverlayMgr} ngeoFeatureOverlayMgr The ngeo feature
  *     overlay manager service.
- * @param {angular.$timeout} $timeout Angular timeout service.
- * @param {ngeo.CsvDownload} ngeoCsvDownload CSV download service.
- * @param {angular.JQLite} $element Element.
+ * @param {!angular.$timeout} $timeout Angular timeout service.
+ * @param {!ngeo.CsvDownload} ngeoCsvDownload CSV download service.
+ * @param {!angular.JQLite} $element Element.
  * @constructor
  * @private
  * @ngInject
  * @ngdoc controller
  * @ngname GmfDisplayquerygridController
  */
-gmf.DisplayquerygridController = function($injector, $scope, ngeoQueryResult,
+gmf.DisplayquerygridController = function($injector, $scope, ngeoQueryResult, ngeoMapQuerent,
   ngeoFeatureOverlayMgr, $timeout, ngeoCsvDownload, $element) {
 
   const queryOptions = /** @type {ngeox.QueryOptions} */ (
@@ -127,25 +131,31 @@ gmf.DisplayquerygridController = function($injector, $scope, ngeoQueryResult,
   this.$scope_ = $scope;
 
   /**
-   * @type {angular.$timeout}
+   * @type {!angular.$timeout}
    * @private
    */
   this.$timeout_ = $timeout;
 
   /**
-   * @type {ngeox.QueryResult}
+   * @type {!ngeox.QueryResult}
    * @export
    */
   this.ngeoQueryResult = ngeoQueryResult;
 
   /**
-   * @type {ngeo.CsvDownload}
+   * @type {!ngeo.MapQuerent}
+   * @private
+   */
+  this.ngeoMapQuerent_ = ngeoMapQuerent;
+
+  /**
+   * @type {!ngeo.CsvDownload}
    * @private
    */
   this.ngeoCsvDownload_ = ngeoCsvDownload;
 
   /**
-   * @type {angular.JQLite}
+   * @type {!angular.JQLite}
    * @private
    */
   this.$element_ = $element;
@@ -176,7 +186,7 @@ gmf.DisplayquerygridController = function($injector, $scope, ngeoQueryResult,
 
   /**
    * IDs of the grid sources in the order they were loaded.
-   * @type {Array.<string>}
+   * @type {!Array.<string>}
    * @export
    */
   this.loadedGridSources = [];
@@ -217,23 +227,22 @@ gmf.DisplayquerygridController = function($injector, $scope, ngeoQueryResult,
   // Styles for displayed features (features) and selected features
   // (highlightFeatures_) (user can set both styles).
   /**
-   * @type {ol.Collection}
+   * @type {!ol.Collection}
    * @private
    */
   this.features_ = new ol.Collection();
 
   /**
-   * @type {ngeo.FeatureOverlay}
+   * @type {!ngeo.FeatureOverlayMgr}
    * @private
    */
-  this.highlightFeatureOverlay_ = ngeoFeatureOverlayMgr.getFeatureOverlay();
+  this.ngeoFeatureOverlayMgr_ = ngeoFeatureOverlayMgr;
 
   /**
-   * @type {ol.Collection}
+   * @type {!ol.Collection}
    * @private
    */
   this.highlightFeatures_ = new ol.Collection();
-  this.highlightFeatureOverlay_.setFeatures(this.highlightFeatures_);
 
   /**
    * @type {ol.Map}
@@ -267,13 +276,16 @@ gmf.DisplayquerygridController.prototype.$onInit = function() {
   this.maxRecenterZoom = this['maxRecenterZoomFn'] ? this['maxRecenterZoomFn']() : undefined;
   this.mergeTabs_ = this['mergeTabsFn'] ? this['mergeTabsFn']() : {};
 
+  const featuresOverlay = this.ngeoFeatureOverlayMgr_.getFeatureOverlay();
+  featuresOverlay.setFeatures(this.features_);
   const featuresStyle = this['featuresStyleFn']();
   if (featuresStyle !== undefined) {
     goog.asserts.assertInstanceof(featuresStyle, ol.style.Style);
-    this.highlightFeatureOverlay_.setStyle(featuresStyle);
+    featuresOverlay.setStyle(featuresStyle);
   }
-  this.highlightFeatureOverlay_.setFeatures(this.features_);
 
+  const highlightFeaturesOverlay = this.ngeoFeatureOverlayMgr_.getFeatureOverlay();
+  highlightFeaturesOverlay.setFeatures(this.highlightFeatures_);
   let highlightFeatureStyle = this['selectedFeatureStyleFn']();
   if (highlightFeatureStyle !== undefined) {
     goog.asserts.assertInstanceof(highlightFeatureStyle, ol.style.Style);
@@ -287,7 +299,7 @@ gmf.DisplayquerygridController.prototype.$onInit = function() {
       zIndex: 10
     });
   }
-  this.highlightFeatureOverlay_.setStyle(highlightFeatureStyle);
+  highlightFeaturesOverlay.setStyle(highlightFeatureStyle);
 
   const mapFn = this['getMapFn'];
   if (mapFn) {
@@ -303,7 +315,7 @@ gmf.DisplayquerygridController.prototype.$onInit = function() {
  * @return {Array.<gmfx.GridSource>} Grid sources.
  */
 gmf.DisplayquerygridController.prototype.getGridSources = function() {
-  return this.loadedGridSources.map(sourceId => this.gridSources[sourceId]);
+  return this.loadedGridSources.map(sourceLabel => this.gridSources[sourceLabel]);
 };
 
 
@@ -336,6 +348,7 @@ gmf.DisplayquerygridController.prototype.updateData_ = function() {
     if (source.tooManyResults) {
       this.makeGrid_(null, source);
     } else {
+      source.id = this.escapeValue_(source.id);
       const features = source.features;
       if (features.length > 0) {
         this.collectData_(source);
@@ -343,7 +356,7 @@ gmf.DisplayquerygridController.prototype.updateData_ = function() {
     }
   });
 
-  if (this.loadedGridSources.length == 0) {
+  if (this.loadedGridSources.length === 0) {
     // if no grids were created, do not show
     this.active = false;
     return;
@@ -369,6 +382,26 @@ gmf.DisplayquerygridController.prototype.hasOneWithTooManyResults_ = function() 
   return this.ngeoQueryResult.sources.some(source => source.tooManyResults);
 };
 
+/**
+ * Returns an escaped value.
+ * @param {string|number} value A value to escape.
+ * @returns {string|number} value An escaped value.
+ * @private
+ */
+gmf.DisplayquerygridController.prototype.escapeValue_ = function(value) {
+  // Work-around for Number.isInteger() when not always getting a number ...
+  if (Number.isInteger(/** @type {number} */ (value))) {
+    return value;
+  } else {
+    const toEscape = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\ |]/g;
+    if (value.match(toEscape) !== null) {
+      return value.replace(toEscape, '_');
+    } else {
+      return value;
+    }
+  }
+};
+
 
 /**
  * Returns if the given grid source is selected?
@@ -377,7 +410,7 @@ gmf.DisplayquerygridController.prototype.hasOneWithTooManyResults_ = function() 
  * @return {boolean} Is selected?
  */
 gmf.DisplayquerygridController.prototype.isSelected = function(gridSource) {
-  return this.selectedTab === gridSource.source.id;
+  return this.selectedTab === gridSource.source.label;
 };
 
 
@@ -424,8 +457,8 @@ gmf.DisplayquerygridController.prototype.getMergedSource_ = function(source, mer
   let mergeSourceId = null;
 
   for (const currentMergeSourceId in this.mergeTabs_) {
-    const sourceIds = this.mergeTabs_[currentMergeSourceId];
-    const containsSource = sourceIds.some(sourceId => sourceId == source.id);
+    const sourceLabels = this.mergeTabs_[currentMergeSourceId];
+    const containsSource = sourceLabels.some(sourceLabel => sourceLabel == source.label);
     if (containsSource) {
       mergeSourceId = currentMergeSourceId;
       break;
@@ -506,7 +539,7 @@ gmf.DisplayquerygridController.prototype.collectData_ = function(source) {
   if (allProperties.length > 0) {
     const gridCreated = this.makeGrid_(allProperties, source);
     if (gridCreated) {
-      this.featuresForSources_[`${source.id}`] = featuresForSource;
+      this.featuresForSources_[`${source.label}`] = featuresForSource;
     }
   }
 };
@@ -525,6 +558,7 @@ gmf.DisplayquerygridController.prototype.cleanProperties_ = function(
       delete properties[featureGeometryName];
     });
     delete properties['boundedBy'];
+    delete properties['ngeo_feature_type_'];
   });
 
   if (this.removeEmptyColumns_ === true) {
@@ -575,7 +609,7 @@ gmf.DisplayquerygridController.prototype.removeEmptyColumnsFn_ = function(
  * @private
  */
 gmf.DisplayquerygridController.prototype.makeGrid_ = function(data, source) {
-  const sourceId = `${source.id}`;
+  const sourceLabel = `${source.label}`;
   let gridConfig = null;
   if (data !== null) {
     gridConfig = this.getGridConfiguration_(data);
@@ -583,10 +617,10 @@ gmf.DisplayquerygridController.prototype.makeGrid_ = function(data, source) {
       return false;
     }
   }
-  if (this.loadedGridSources.indexOf(sourceId) == -1) {
-    this.loadedGridSources.push(sourceId);
+  if (this.loadedGridSources.indexOf(sourceLabel) == -1) {
+    this.loadedGridSources.push(sourceLabel);
   }
-  this.gridSources[sourceId] = {
+  this.gridSources[sourceLabel] = {
     configuration: gridConfig,
     source
   };
@@ -638,6 +672,7 @@ gmf.DisplayquerygridController.prototype.clear = function() {
   this.tooManyResults = false;
   this.features_.clear();
   this.highlightFeatures_.clear();
+  this.ngeoMapQuerent_.clear();
   this.featuresForSources_ = {};
   if (this.unregisterSelectWatcher_) {
     this.unregisterSelectWatcher_();
@@ -652,7 +687,7 @@ gmf.DisplayquerygridController.prototype.clear = function() {
  */
 gmf.DisplayquerygridController.prototype.selectTab = function(gridSource) {
   const source = gridSource.source;
-  this.selectedTab = source.id;
+  this.selectedTab = source.label;
 
   if (this.unregisterSelectWatcher_) {
     this.unregisterSelectWatcher_();
@@ -670,7 +705,7 @@ gmf.DisplayquerygridController.prototype.selectTab = function(gridSource) {
   }
   this.updateFeatures_(gridSource);
 
-  this.reflowGrid_(this.selectedTab);
+  this.reflowGrid_(source.id);
 };
 
 
@@ -679,9 +714,9 @@ gmf.DisplayquerygridController.prototype.selectTab = function(gridSource) {
  * @param {string|number} sourceId Id of the source that should be refreshed.
  */
 gmf.DisplayquerygridController.prototype.reflowGrid_ = function(sourceId) {
-  // this is a "work-around" to make sure that the grid is rendered correctly.
-  // when a pane is activated by setting `this.selectedTab`, the class `active`
-  // is not yet set on the pane. that's why the class is set manually, and
+  // This is a "work-around" to make sure that the grid is rendered correctly.
+  // When a pane is activated by setting `this.selectedTab`, the class `active`
+  // is not yet set on the pane. That's why the class is set manually, and
   // after the pane is shown (in the next digest loop), the grid table can
   // be refreshed.
   const activePane = this.$element_.find(`div.tab-pane#${sourceId}`);
@@ -718,8 +753,8 @@ gmf.DisplayquerygridController.prototype.updateFeatures_ = function(gridSource) 
     return;
   }
 
-  const sourceId = `${gridSource.source.id}`;
-  const featuresForSource = this.featuresForSources_[sourceId];
+  const sourceLabel = `${gridSource.source.label}`;
+  const featuresForSource = this.featuresForSources_[sourceLabel];
   const selectedRows = gridSource.configuration.selectedRows;
 
   for (const rowId in featuresForSource) {

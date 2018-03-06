@@ -236,10 +236,11 @@ gmf.Permalink = function($timeout, $rootScope, $injector, ngeoDebounce,
     $injector.get('ngeoWfsPermalink') : null;
 
   /**
-   * @type {gmfx.User}
+   * @type {?gmfx.User}
    * @export
    */
-  this.gmfUser_ = $injector.get('gmfUser');
+  this.gmfUser_ = $injector.has('gmfUser') ?
+    $injector.get('gmfUser') : null;
 
   /**
    * @type {?ol.Map}
@@ -266,6 +267,12 @@ gmf.Permalink = function($timeout, $rootScope, $injector, ngeoDebounce,
       this.sourceProjections_ = projections;
     }
   }
+
+  /**
+   * @type {?ol.Feature}
+   * @private
+   */
+  this.crosshairFeature_ = null;
 
   /**
    * @type {Array<(null|ol.style.Style)>|null|ol.FeatureStyleFunction|ol.style.Style}
@@ -301,6 +308,11 @@ gmf.Permalink = function($timeout, $rootScope, $injector, ngeoDebounce,
     })];
   }
 
+  /**
+   * @type {?ngeo.Popover}
+   * @private
+   */
+  this.mapTooltip_ = null;
 
   /**
    * @type {ngeo.format.FeatureHash}
@@ -319,6 +331,7 @@ gmf.Permalink = function($timeout, $rootScope, $injector, ngeoDebounce,
       'isLabel': ngeo.FeatureProperties.IS_TEXT,
       'name': ngeo.FeatureProperties.NAME,
       'pointRadius': ngeo.FeatureProperties.SIZE,
+      'showLabel': ngeo.FeatureProperties.SHOW_LABEL,
       'showMeasure': ngeo.FeatureProperties.SHOW_MEASURE,
       'strokeColor': ngeo.FeatureProperties.COLOR,
       'strokeWidth': ngeo.FeatureProperties.STROKE
@@ -398,7 +411,7 @@ gmf.Permalink = function($timeout, $rootScope, $injector, ngeoDebounce,
 
   if (this.gmfThemeManager_) {
     this.rootScope_.$on(gmf.ThemeManagerEventType.THEME_NAME_SET, (event, name) => {
-      this.setThemeInUrl_();
+      this.setThemeInUrl_(name);
     });
   }
 
@@ -515,6 +528,34 @@ gmf.Permalink.prototype.getMapCrosshair = function() {
 };
 
 
+/**
+ * Sets the map crosshair to the center (or the map center if nothing provided).
+ * Overwrites an existing map crosshair.
+ * @param {?ol.Coordinate=} opt_center Optional center coordinate.
+ */
+gmf.Permalink.prototype.setMapCrosshair = function(opt_center) {
+  let crosshairCoordinate;
+  if (opt_center) {
+    crosshairCoordinate = opt_center;
+  } else {
+    crosshairCoordinate = this.map_.getView().getCenter();
+  }
+  goog.asserts.assertArray(crosshairCoordinate);
+
+  // remove existing crosshair first
+  if (this.crosshairFeature_) {
+    this.featureOverlay_.removeFeature(this.crosshairFeature_);
+  }
+  // set new crosshair
+  this.crosshairFeature_ = new ol.Feature(
+    new ol.geom.Point(crosshairCoordinate));
+  this.crosshairFeature_.setStyle(this.crosshairStyle_);
+
+  // add to overlay
+  this.featureOverlay_.addFeature(this.crosshairFeature_);
+};
+
+
 // === Map tooltip ===
 
 
@@ -525,6 +566,38 @@ gmf.Permalink.prototype.getMapCrosshair = function() {
  */
 gmf.Permalink.prototype.getMapTooltip = function() {
   return this.ngeoStateManager_.getInitialStringValue(gmf.PermalinkParam.MAP_TOOLTIP);
+};
+
+/**
+ * Sets the map tooltip to the center (or the map center if nothing provided).
+ * Overwrites an existing map tooltip.
+ * @param {string} tooltipText Text to display in tooltip.
+ * @param {?ol.Coordinate=} opt_center Optional center coordinate.
+ */
+gmf.Permalink.prototype.setMapTooltip = function(tooltipText, opt_center) {
+  let tooltipPosition;
+  if (opt_center) {
+    tooltipPosition = opt_center;
+  } else {
+    tooltipPosition = this.map_.getView().getCenter();
+  }
+  goog.asserts.assertArray(tooltipPosition);
+
+  const div = $('<div/>', {
+    'class': 'gmf-permalink-tooltip',
+    'text': tooltipText
+  })[0];
+
+  if (this.mapTooltip_ !== null) {
+    this.map_.removeOverlay(this.mapTooltip_);
+  }
+
+  this.mapTooltip_ = new ngeo.Popover({
+    element: div,
+    position: tooltipPosition
+  });
+
+  this.map_.addOverlay(this.mapTooltip_);
 };
 
 
@@ -652,41 +725,13 @@ gmf.Permalink.prototype.registerMap_ = function(map, oeFeature) {
 
   // (3) Add map crosshair, if set
   if (this.getMapCrosshair() && this.featureOverlay_) {
-    let crosshairCoordinate;
-    if (center !== null) {
-      crosshairCoordinate = center;
-    } else {
-      crosshairCoordinate = view.getCenter();
-    }
-    goog.asserts.assertArray(crosshairCoordinate);
-
-    const crosshairFeature = new ol.Feature(
-      new ol.geom.Point(crosshairCoordinate));
-    crosshairFeature.setStyle(this.crosshairStyle_);
-    this.featureOverlay_.addFeature(crosshairFeature);
+    this.setMapCrosshair(center);
   }
 
   // (4) Add map tooltip, if set
   const tooltipText = this.getMapTooltip();
   if (tooltipText) {
-    let tooltipPosition;
-    if (center !== null) {
-      tooltipPosition = center;
-    } else {
-      tooltipPosition = view.getCenter();
-    }
-    goog.asserts.assertArray(tooltipPosition);
-
-    const div = $('<div/>', {
-      'class': 'gmf-permalink-tooltip',
-      'text': tooltipText
-    })[0];
-
-    const popover = new ngeo.Popover({
-      element: div,
-      position: tooltipPosition
-    });
-    map.addOverlay(popover);
+    this.setMapTooltip(tooltipText, center);
   }
 
   // (6) check for a wfs permalink
@@ -790,10 +835,10 @@ gmf.Permalink.prototype.themeInUrl_ = function(pathElements) {
 
 
 /**
+ * @param {string} themeName Theme name.
  * @private
  */
-gmf.Permalink.prototype.setThemeInUrl_ = function() {
-  const themeName = this.gmfThemeManager_ ? this.gmfThemeManager_.getThemeName() : null;
+gmf.Permalink.prototype.setThemeInUrl_ = function(themeName) {
   if (themeName) {
     const pathElements = this.ngeoLocation_.getPath().split('/');
     goog.asserts.assert(pathElements.length > 1);
@@ -852,6 +897,9 @@ gmf.Permalink.prototype.defaultThemeName = function() {
  */
 gmf.Permalink.prototype.defaultThemeNameFromFunctionalities = function() {
   //check if we have a theme in the user functionalities
+  if (!this.gmfUser_) {
+    return null;
+  }
   const functionalities = this.gmfUser_.functionalities;
   if (functionalities && 'default_theme' in functionalities) {
     const defaultTheme = functionalities.default_theme;
@@ -872,10 +920,10 @@ gmf.Permalink.prototype.initLayers_ = function() {
   }
   this.gmfThemes_.getThemesObject().then((themes) => {
     const themeName = this.defaultThemeName();
+    goog.asserts.assert(themeName !== null);
 
-    if (this.gmfThemeManager_ && this.gmfThemeManager_.modeFlush) {
-      // Set theme in stealth mode, we just want to set the theme name, not more.
-      this.gmfThemeManager_.setThemeName(`${themeName}`, true);
+    if (this.gmfThemeManager_) {
+      this.gmfThemeManager_.setThemeName(this.gmfThemeManager_.modeFlush ? themeName : '');
     }
 
     /**
@@ -885,7 +933,7 @@ gmf.Permalink.prototype.initLayers_ = function() {
     let theme;
     // Check if we have the groups in the permalink
     const groupsNames = this.ngeoLocation_.getParam(gmf.PermalinkParam.TREE_GROUPS);
-    if (!groupsNames) {
+    if (groupsNames === undefined) {
       goog.asserts.assertString(themeName);
       theme = gmf.Themes.findThemeByName(themes, themeName);
       if (theme) {
@@ -936,7 +984,7 @@ gmf.Permalink.prototype.initLayers_ = function() {
           const groupLayers = this.ngeoStateManager_.getInitialStringValue(
             gmf.PermalinkParamPrefix.TREE_GROUP_LAYERS + treeCtrl.node.name
           );
-          if (groupLayers) {
+          if (groupLayers !== undefined) {
             const groupLayersArray = groupLayers.split(',');
             treeCtrl.traverseDepthFirst((treeCtrl) => {
               if (treeCtrl.node.children === undefined) {
@@ -1118,6 +1166,77 @@ gmf.Permalink.prototype.createFilterGroup_ = function(prefix, paramKeys) {
   });
 
   return (filters.length > 0) ? {filters} : null;
+};
+
+
+/**
+ * Contains the layer name
+ * @param {!ol.layer.Base} layer The layer to inspect
+ * @param {string} name The layer name to find
+ * @return {boolean} The containing status
+ */
+gmf.Permalink.prototype.containsLayerName = function(layer, name) {
+  if (layer instanceof ol.layer.Group) {
+    for (const l of layer.getLayers().getArray()) {
+      goog.asserts.assert(l);
+      if (this.containsLayerName(l, name)) {
+        return true;
+      }
+    }
+    return false;
+  } else {
+    return layer.get('layerNodeName') == name;
+  }
+};
+
+
+/**
+ * Clean the permalink parameters
+ * @param {!Array.<gmfThemes.GmfGroup>} groups firstlevel groups of the tree
+ */
+gmf.Permalink.prototype.cleanParams = function(groups) {
+  const keys = goog.asserts.assert(this.ngeoLocation_.getParamKeys());
+  for (const key of keys) {
+    if (key.startsWith(gmf.PermalinkParamPrefix.TREE_GROUP_LAYERS)) {
+      const value = key.substring(gmf.PermalinkParamPrefix.TREE_GROUP_LAYERS.length);
+      for (const group of groups) {
+        if (group.name == value) {
+          this.ngeoStateManager_.deleteParam(key);
+          break;
+        }
+      }
+    }
+    if (key.startsWith(gmf.PermalinkParamPrefix.TREE_GROUP_OPACITY)) {
+      const value = key.substring(gmf.PermalinkParamPrefix.TREE_GROUP_OPACITY.length);
+      for (const group of groups) {
+        if (group.name == value) {
+          this.ngeoStateManager_.deleteParam(key);
+          break;
+        }
+      }
+    }
+  }
+  this.$timeout_(() => {
+    if (!this.map_) {
+      return;
+    }
+    const layer = this.map_.getLayerGroup();
+    goog.asserts.assert(layer);
+    for (const key of keys) {
+      if (key.startsWith(gmf.PermalinkParamPrefix.TREE_ENABLE)) {
+        const value = key.substring(gmf.PermalinkParamPrefix.TREE_ENABLE.length);
+        if (!this.containsLayerName(layer, value)) {
+          this.ngeoStateManager_.deleteParam(key);
+        }
+      }
+      if (key.startsWith(gmf.PermalinkParamPrefix.TREE_OPACITY)) {
+        const value = key.substring(gmf.PermalinkParamPrefix.TREE_OPACITY.length);
+        if (!this.containsLayerName(layer, value)) {
+          this.ngeoStateManager_.deleteParam(key);
+        }
+      }
+    }
+  });
 };
 
 

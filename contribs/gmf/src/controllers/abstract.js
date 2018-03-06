@@ -132,7 +132,7 @@ gmf.AbstractController = function(config, $scope, $injector) {
     });
   };
 
-  const userChange = function(evt) {
+  const userChange = (evt) => {
     const roleId = (evt.user.username !== null) ? evt.user.role_id : undefined;
 
     // Open filter panel if 'open_panel' is set in functionalities and
@@ -147,14 +147,15 @@ gmf.AbstractController = function(config, $scope, $injector) {
     });
 
     // Reload theme and background layer when login status changes.
+    const previousThemeName = this.gmfThemeManager.getThemeName();
+    this.gmfThemeManager.setThemeName('', true);
     if (evt.type !== gmf.AuthenticationEventType.READY) {
-      this.updateCurrentTheme_();
-      this.updateCurrentBackgroundLayer_(true);
+      this.updateCurrentTheme_(previousThemeName);
     }
     // Reload themes when login status changes.
     this.gmfThemes_.loadThemes(roleId);
     this.updateHasEditableLayers_();
-  }.bind(this);
+  };
 
   ol.events.listen(gmfAuthentication, gmf.AuthenticationEventType.READY, userChange);
   ol.events.listen(gmfAuthentication, gmf.AuthenticationEventType.LOGIN, userChange);
@@ -197,16 +198,20 @@ gmf.AbstractController = function(config, $scope, $injector) {
     }
   }
 
-  const backgroundLayerMgr = $injector.get('ngeoBackgroundLayerMgr');
+  /**
+   * @type {ngeo.BackgroundLayerMgr}
+   * @private
+   */
+  this.backgroundLayerMgr_ = $injector.get('ngeoBackgroundLayerMgr');
 
   // watch any change on dimensions object to refresh the background layer
   $scope.$watchCollection(() => this.dimensions, () => {
-    backgroundLayerMgr.updateDimensions(this.map, this.dimensions);
+    this.backgroundLayerMgr_.updateDimensions(this.map, this.dimensions);
   });
 
-  backgroundLayerMgr.on(ngeo.BackgroundEventType.CHANGE, function() {
-    backgroundLayerMgr.updateDimensions(this.map, this.dimensions);
-  }, this);
+  this.backgroundLayerMgr_.on(ngeo.BackgroundEventType.CHANGE, () => {
+    this.backgroundLayerMgr_.updateDimensions(this.map, this.dimensions);
+  });
 
   /**
    * @type {boolean}
@@ -406,59 +411,10 @@ gmf.AbstractController = function(config, $scope, $injector) {
   ngeoToolActivateMgr.registerTool(mapTools, printPanelActivate, false);
 
   $scope.$root.$on(gmf.ThemeManagerEventType.THEME_NAME_SET, (event, name) => {
-    const map = this.map;
     this.gmfThemes_.getThemeObject(name).then((theme) => {
-      if (theme) {
-        const backgrounds = theme.functionalities.default_basemap;
-        if (backgrounds && backgrounds.length > 0) {
-          const background = backgrounds[0];
-          this.gmfThemes_.getBgLayers(this.dimensions).then((layers) => {
-            const layer = ol.array.find(layers, layer => layer.get('label') === background);
-            if (layer) {
-              backgroundLayerMgr.set(map, layer);
-            }
-          });
-        }
-      }
+      this.setDefaultBackground_(theme);
     });
   });
-
-  /**
-   * @param {boolean} skipPermalink If True, don't use permalink
-   * background layer.
-   * @private
-   */
-  this.updateCurrentBackgroundLayer_ = function(skipPermalink) {
-    this.gmfThemes_.getBgLayers(this.dimensions).then((layers) => {
-      let background;
-      if (!skipPermalink) {
-        // get the background from the permalink
-        background = this.permalink_.getBackgroundLayer(layers);
-      }
-      if (!background) {
-        // get the background from the user settings
-        const functionalities = this.gmfUser.functionalities;
-        if (functionalities) {
-          const defaultBasemapArray = functionalities.default_basemap;
-          if (defaultBasemapArray.length > 0) {
-            const defaultBasemapLabel = defaultBasemapArray[0];
-            background = ol.array.find(layers, layer => layer.get('label') === defaultBasemapLabel);
-          }
-        }
-      }
-      if (!background && layers[1]) {
-        // fallback to the layers list, use the second one because the first
-        // is the blank layer
-        background = layers[1];
-      }
-
-      if (background) {
-        backgroundLayerMgr.set(this.map, background);
-      }
-    });
-  }.bind(this);
-
-  this.updateCurrentBackgroundLayer_(false);
 
   /**
    * Ngeo create popup factory
@@ -572,6 +528,19 @@ gmf.AbstractController = function(config, $scope, $injector) {
 
 
 /**
+ * @param {Array.<ol.layer.Base>} layers Layers list.
+ * @param {Array.<string>} labels default_basemap list.
+ * @return {ol.layer.Base} layer or null
+ */
+gmf.AbstractController.getLayerByLabels = function(layers, labels) {
+  if (labels && labels.length > 0) {
+    return ol.array.find(layers, layer => layer.get('label') === labels[0]);
+  }
+  return null;
+};
+
+
+/**
  * @param {string} lang Language code.
  * @export
  */
@@ -615,9 +584,41 @@ gmf.AbstractController.prototype.initLanguage = function() {
 
 
 /**
+ * @param {gmfThemes.GmfTheme} theme Theme.
  * @private
  */
-gmf.AbstractController.prototype.updateCurrentTheme_ = function() {
+gmf.AbstractController.prototype.setDefaultBackground_ = function(theme) {
+  this.gmfThemes_.getBgLayers(this.dimensions).then((layers) => {
+    let layer;
+
+    // get the background from the permalink
+    layer = this.permalink_.getBackgroundLayer(layers);
+
+    if (!layer) {
+      // get the background from the user settings
+      layer = gmf.AbstractController.getLayerByLabels(layers, this.gmfUser.functionalities.default_basemap);
+    }
+
+    if (!layer && theme) {
+      // get the background from the theme
+      layer = gmf.AbstractController.getLayerByLabels(layers, theme.functionalities.default_basemap);
+    }
+
+    if (!layer) {
+      // fallback to the layers list, use the second one because the first is the blank layer.
+      layer = layers[layers.length > 1 ? 1 : 0];
+    }
+
+    goog.asserts.assert(layer);
+    this.backgroundLayerMgr_.set(this.map, layer);
+  });
+};
+
+/**
+ * @param {string} fallbackThemeName fallback theme name.
+ * @private
+ */
+gmf.AbstractController.prototype.updateCurrentTheme_ = function(fallbackThemeName) {
   this.gmfThemes_.getThemesObject().then((themes) => {
     const themeName = this.permalink_.defaultThemeNameFromFunctionalities();
     if (themeName) {
@@ -625,6 +626,8 @@ gmf.AbstractController.prototype.updateCurrentTheme_ = function() {
       if (theme) {
         this.gmfThemeManager.addTheme(theme, true);
       }
+    } else {
+      this.gmfThemeManager.setThemeName(fallbackThemeName);
     }
   });
 };

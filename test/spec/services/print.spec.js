@@ -113,7 +113,8 @@ describe('ngeo.CreatePrint', () => {
                 type: 'wms',
                 opacity: 1,
                 serverType: undefined,
-                version: undefined
+                version: undefined,
+                useNativeAngle: true
               }]
             },
             foo: 'fooval',
@@ -170,7 +171,8 @@ describe('ngeo.CreatePrint', () => {
                 type: 'wms',
                 opacity: 1,
                 serverType: undefined,
-                version: undefined
+                version: undefined,
+                useNativeAngle: true
               }]
             },
             foo: 'fooval',
@@ -361,7 +363,7 @@ describe('ngeo.CreatePrint', () => {
           })
         });
 
-        // Here to check that no offset are present if textAlign is not there.
+        // Here to check that textAlign default value is set.
         style4 = new ol.style.Style({
           text: new ol.style.Text({
             font: 'normal 16px "sans serif"',
@@ -454,7 +456,7 @@ describe('ngeo.CreatePrint', () => {
             fontSize: '16px',
             fontFamily: '"sans serif"',
             label: 'Ngeo',
-            labelAlign: 'left',
+            labelAlign: 'lm',
             labelXOffset: 42,
             labelYOffset: 42
           }]
@@ -466,7 +468,10 @@ describe('ngeo.CreatePrint', () => {
             fontWeight: 'normal',
             fontSize: '16px',
             fontFamily: '"sans serif"',
-            label: 'Ngeo'
+            label: 'Ngeo',
+            labelAlign: 'cm',
+            labelXOffset: 42,
+            labelYOffset: 42
           }]
         };
 

@@ -19,7 +19,7 @@ GMF_DIRECTIVES_PARTIALS_FILES := $(shell ls -1 contribs/gmf/src/directives/parti
 NGEO_EXAMPLES_PARTIALS_FILES := $(shell ls -1 examples/partials/*.html)
 GMF_EXAMPLES_PARTIALS_FILES := $(shell ls -1 contribs/gmf/examples/partials/*.html)
 
-CLOSURE_LIBRARY_PATH = $(shell node -e 'process.stdout.write(require("closure-util").getLibraryPath())' 2> /dev/null)
+CLOSURE_LIBRARY_PATH = $(shell node -e 'process.stdout.write(require("@camptocamp/closure-util").getLibraryPath())' 2> /dev/null)
 
 EXAMPLES_HTML_FILES := $(shell find examples -maxdepth 1 -type f -name '*.html')
 EXAMPLES_JS_FILES := $(EXAMPLES_HTML_FILES:.html=.js)
@@ -57,6 +57,7 @@ GMF_APPS_LIBS_JS_FILES += \
 	node_modules/file-saver/FileSaver.js \
 	node_modules/corejs-typeahead/dist/typeahead.bundle.js \
 	node_modules/jsts/dist/jsts.min.js \
+	node_modules/url-polyfill/url-polyfill.js \
 	third-party/jquery-ui/jquery-ui.js \
 	$(CLOSURE_LIBRARY_PATH)/closure/goog/transpile.js
 else
@@ -79,6 +80,7 @@ GMF_APPS_LIBS_JS_FILES += \
 	node_modules/d3/build/d3.min.js \
 	node_modules/corejs-typeahead/dist/typeahead.bundle.min.js \
 	node_modules/jsts/dist/jsts.min.js \
+	node_modules/url-polyfill/url-polyfill.min.js \
 	third-party/jquery-ui/jquery-ui.min.js
 endif
 

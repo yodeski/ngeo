@@ -6,9 +6,9 @@
 
 /**
  * @private
- * @type {Object}
+ * @const
  */
-let ngeox;
+let ngeox = {};
 
 
 /**
@@ -86,7 +86,21 @@ ngeox.Attribute.prototype.type;
 
 
 /**
- * The options to use when creating a filter uwing the `ngeo.RuleHelper`
+ * The format used in the date, time and datetime type.
+ * @type {string|undefined}
+ */
+ngeox.Attribute.prototype.format;
+
+
+/**
+ * The mask used in the date, time and datetime type.
+ * @type {string|undefined}
+ */
+ngeox.Attribute.prototype.mask;
+
+
+/**
+ * The options to use when creating a filter using the `ngeo.RuleHelper`
  * service.
  *
  * @typedef {{
@@ -987,7 +1001,7 @@ ngeox.QueryResultSource.prototype.features;
 
 
 /**
- * Identifier.
+ * Identifier (can be not unique).
  * @type {number|string}
  */
 ngeox.QueryResultSource.prototype.id;
@@ -1347,6 +1361,13 @@ ngeox.WfsPermalinkOptions.prototype.maxFeatures;
 
 
 /**
+ * Namespace.
+ * @const
+ */
+ngeox.interaction = {};
+
+
+/**
  * DrawRegularPolygonFromClick Interaction.
  * @typedef {{
  *     angle: (number|undefined),
@@ -1429,9 +1450,9 @@ ngeox.interaction.MobileDrawOptions.prototype.wrapX;
 
 /**
  * Namespace.
- * @type {Object}
+ * @const
  */
-ngeox.format;
+ngeox.format = {};
 
 
 /**
@@ -1481,12 +1502,6 @@ ngeox.format.FeatureHashOptions.prototype.properties;
  */
 ngeox.format.FeatureHashOptions.prototype.setStyle;
 
-
-/**
- * Namespace.
- * @type {Object}
- */
-ngeox.interaction;
 
 /**
  * Interactions for measure tools.
@@ -1566,9 +1581,9 @@ ngeox.interaction.TranslateOptions.prototype.style;
 
 /**
  * Namespace.
- * @type {Object}
+ * @const
  */
-ngeox.profile;
+ngeox.profile = {};
 
 
 /**
@@ -2079,9 +2094,9 @@ ngeox.duration;
 
 /**
  * Namespace.
- * @type {Object}
+ * @const
  */
-ngeox.rule;
+ngeox.rule = {};
 
 
 /**
@@ -2285,9 +2300,9 @@ ngeox.rule.RuleRangeValue.prototype.upperBoundary;
 
 /**
  * Namespace.
- * @type {Object}
+ * @const
  */
-ngeox.style;
+ngeox.style = {};
 
 
 /**
@@ -2317,6 +2332,12 @@ ngeox.GridColumnDef;
  * @type {String}
  */
 ngeox.GridColumnDef.prototype.name;
+
+
+/**
+ * @const
+ */
+ngeox.source = {}
 
 
 /**
@@ -2374,9 +2395,9 @@ ngeox.source.SwisstopoOptions.prototype.timestamp;
 
 /**
  * Namespace.
- * @type {Object}
+ * @const
  */
-ngeox.search;
+ngeox.search = {};
 
 
 /**

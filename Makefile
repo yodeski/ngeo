@@ -7,7 +7,7 @@ NGEO_EXAMPLES_PARTIALS_FILES := $(shell ls -1 examples/partials/*.html)
 GMF_EXAMPLES_PARTIALS_FILES := $(shell ls -1 contribs/gmf/examples/partials/*.html)
 
 OS := $(shell uname)
-CLOSURE_LIBRARY_PATH = $(shell node -e 'process.stdout.write(require("closure-util").getLibraryPath())' 2> /dev/null)
+CLOSURE_LIBRARY_PATH = $(shell node -e 'process.stdout.write(require("@camptocamp/closure-util").getLibraryPath())' 2> /dev/null)
 
 EXAMPLES_HTML_FILES := $(shell find examples -maxdepth 1 -type f -name '*.html')
 EXAMPLES_JS_FILES := $(EXAMPLES_HTML_FILES:.html=.js)
@@ -46,7 +46,9 @@ GMF_APPS_LIBS_JS_FILES += \
 	node_modules/corejs-typeahead/dist/typeahead.bundle.js \
 	node_modules/jsts/dist/jsts.min.js \
 	node_modules/moment/moment.js \
+	node_modules/url-polyfill/url-polyfill.js \
 	third-party/jquery-ui/jquery-ui.js \
+	node_modules/jquery-datetimepicker/build/jquery.datetimepicker.full.js \
 	$(CLOSURE_LIBRARY_PATH)/closure/goog/transpile.js
 else
 GMF_APPS_LIBS_JS_FILES += \
@@ -69,7 +71,9 @@ GMF_APPS_LIBS_JS_FILES += \
 	node_modules/corejs-typeahead/dist/typeahead.bundle.min.js \
 	node_modules/jsts/dist/jsts.min.js \
 	node_modules/moment/min/moment.min.js \
-	third-party/jquery-ui/jquery-ui.min.js
+	node_modules/url-polyfill/url-polyfill.min.js \
+	third-party/jquery-ui/jquery-ui.min.js \
+	node_modules/jquery-datetimepicker/build/jquery.datetimepicker.full.min.js
 endif
 
 BUILD_EXAMPLES_CHECK_TIMESTAMP_FILES := $(patsubst examples/%.html,.build/%.check.timestamp,$(EXAMPLES_HTML_FILES)) \
@@ -103,6 +107,7 @@ EXAMPLES_HOSTED_REQUIREMENTS = .build/examples-hosted/lib/ngeo.css \
 	.build/examples-hosted/lib/transpile.js \
 	.build/examples-hosted/https.js \
 	.build/examples-hosted/lib/font-awesome.min.css \
+	.build/examples-hosted/lib/url-polyfill.min.js \
 	$(addprefix .build/examples-hosted/fonts/fontawesome-webfont.,eot ttf woff woff2) \
 	$(addprefix .build/examples-hosted/contribs/gmf/cursors/,grab.cur grabbing.cur)
 NGEO_EXAMPLES_HOSTED_REQUIREMENTS = $(EXAMPLES_HOSTED_REQUIREMENTS) \
@@ -200,7 +205,7 @@ apidoc: .build/apidoc
 dist: dist/ngeo.js dist/ngeo-debug.js dist/gmf.js
 
 .PHONY: check
-check: git-attributes eof-newline lint check-examples test dist build-gmf-apps check-ngeox
+check: lint check-examples test dist build-gmf-apps
 
 .PHONY: check-ngeox
 check-ngeox: options/ngeox.js
@@ -215,7 +220,10 @@ build-gmf-apps: $(foreach APP,$(GMF_APPS),$(addprefix contribs/gmf/build/$(APP),
 check-examples: $(BUILD_EXAMPLES_CHECK_TIMESTAMP_FILES)
 
 .PHONY: lint
-lint: .build/eslint.timestamp
+lint: .build/eslint.timestamp git-attributes eof-newline check-ngeox
+
+.PHONY: eslint
+eslint: .build/eslint.timestamp
 
 .PHONY: git-attributes
 git-attributes:
@@ -290,7 +298,7 @@ gh-pages:
 		$(GMF_SRC_JS_FILES) \
 		$(GMF_EXAMPLES_JS_FILES) \
 		$(GMF_APPS_JS_FILES)
-	./node_modules/.bin/eslint $(filter-out .build/node_modules.timestamp .eslintrc.yaml .eslintrc-es6.yaml, $?)
+	./node_modules/.bin/eslint $(filter-out .build/node_modules.timestamp .eslintrc.yaml .eslintrc-es6.yaml, $^)
 	touch $@
 
 dist/ngeo.js: .build/ngeo.json \
@@ -481,6 +489,10 @@ dist/gmf.js.map: dist/gmf.js
 	mkdir -p $(dir $@)
 	cp $< $@
 
+.build/examples-hosted/lib/url-polyfill.min.js: node_modules/url-polyfill/url-polyfill.min.js
+	mkdir -p $(dir $@)
+	cp $< $@
+
 $(CLOSURE_LIBRARY_PATH)/closure/goog/transpile.js: .build/node_modules.timestamp
 
 .build/examples-hosted/lib/transpile.js: $(CLOSURE_LIBRARY_PATH)/closure/goog/transpile.js
@@ -563,6 +575,7 @@ node_modules/angular/angular.min.js: .build/node_modules.timestamp
 		-e 's|\.\./node_modules/proj4/dist/proj4\.js|lib/proj4.js|' \
 		-e 's|\.\./node_modules/jsts/dist/jsts\.min\.js|lib/jsts.min.js|' \
 		-e 's|\.\./node_modules/moment/min/moment\.min\.js|lib/moment.min.js|' \
+		-e 's|\.\./node_modules/url-polyfill/url-polyfill.js|lib/url-polyfill/url-polyfill.min.js|' \
 		-e 's|/@?main=$*.js|lib/transpile.js|' \
 		-e 's|default\.js|$*.js|' \
 		-e 's|\.\./utils/watchwatchers.js|lib/watchwatchers.js|' \
@@ -596,6 +609,7 @@ node_modules/angular/angular.min.js: .build/node_modules.timestamp
 		-e 's|\.\./node_modules/proj4/dist/proj4\.js|lib/proj4.js|' \
 		-e 's|\.\./node_modules/jsts/dist/jsts\.min\.js|lib/jsts.min.js|' \
 		-e 's|\.\./node_modules/moment/min/moment\.min\.js|lib/moment.min.js|' \
+		-e 's|\.\./node_modules/url-polyfill/url-polyfill.js|lib/url-polyfill/url-polyfill.min.js|' \
 		-e 's|/@?main=$*\.js|../../lib/transpile.js|' \
 		-e 's|default\.js|$*.js|' \
 		-e 's|\.\./utils/watchwatchers\.js|lib/watchwatchers.js|' \
@@ -849,20 +863,20 @@ $(EXTERNS_JQUERY): github_versions
 
 .build/ol-deps.js: .build/python-venv .build/node_modules.timestamp
 	.build/python-venv/bin/python buildtools/closure/depswriter.py \
-		--root_with_prefix="node_modules/openlayers/src ../../../../../../openlayers/src" \
-		--root_with_prefix="node_modules/openlayers/build/ol.ext ../../../../../../openlayers/build/ol.ext" \
+		--root_with_prefix="node_modules/openlayers/src ../../../../../../../openlayers/src" \
+		--root_with_prefix="node_modules/openlayers/build/ol.ext ../../../../../../../openlayers/build/ol.ext" \
 		--output_file=$@
 
 .build/ngeo-deps.js: .build/python-venv .build/node_modules.timestamp
 	.build/python-venv/bin/python buildtools/closure/depswriter.py \
-		--root_with_prefix="src ../../../../../../../src" --output_file=$@
+		--root_with_prefix="src ../../../../../../../../src" --output_file=$@
 
 .build/gmf-deps.js: .build/python-venv \
 		.build/node_modules.timestamp \
 		$(SRC_JS_FILES) \
 		$(GMF_SRC_JS_FILES)
 	.build/python-venv/bin/python buildtools/closure/depswriter.py \
-		--root_with_prefix="contribs/gmf/src ../../../../../../../contribs/gmf/src" --output_file=$@
+		--root_with_prefix="contribs/gmf/src ../../../../../../../../contribs/gmf/src" --output_file=$@
 
 # The keys in the template cache begin with "../src/directives/partials". This
 # is done so ngeo.js works for the examples on github.io. If another key
@@ -981,9 +995,7 @@ transifex-send: .build/python-venv/bin/tx \
 		.build/locale/gmf.pot \
 		.build/locale/apps.pot
 	.build/python-venv/bin/tx push --source
-	cd contribs/gmf/apps/
-	.build/python-venv/bin/tx push --source
-	cd -
+	cd contribs/gmf/apps/; ../../../.build/python-venv/bin/tx push --source
 
 .PHONY: transifex-init
 transifex-init: .build/python-venv/bin/tx \
@@ -995,10 +1007,8 @@ transifex-init: .build/python-venv/bin/tx \
 	.build/python-venv/bin/tx push --source --force
 	.build/python-venv/bin/tx push --translations --force --no-interactive
 
-	cd contribs/gmf/apps/
-	.build/python-venv/bin/tx push --source --force
-	.build/python-venv/bin/tx push --translations --force --no-interactive
-	cd -
+	cd contribs/gmf/apps/; ../../../.build/python-venv/bin/tx push --source --force
+	cd contribs/gmf/apps/; ../../../.build/python-venv/bin/tx push --translations --force --no-interactive
 
 .build/locale/%/LC_MESSAGES/ngeo.po: .tx/config .build/python-venv/bin/tx
 	.build/python-venv/bin/tx pull -l $* --force --mode=reviewed

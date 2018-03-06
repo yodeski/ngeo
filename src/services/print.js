@@ -125,6 +125,18 @@ ngeo.Print = function(url, $http, ngeoLayerHelper) {
    * @private
    */
   this.ngeoLayerHelper_ = ngeoLayerHelper;
+
+  /**
+   * @type {boolean}
+   * @private
+   */
+  this.printNativeAngle_ = true;
+
+  /**
+   * @type {boolean}
+   * @private
+   */
+  this.isMs = new URL('http://_/?a=+').searchParams.get('a') == '+';
 };
 
 
@@ -210,7 +222,8 @@ ngeo.Print.prototype.encodeMap_ = function(map, scale, object) {
   object.layers = [];
 
   const mapLayerGroup = map.getLayerGroup();
-  goog.asserts.assert(mapLayerGroup !== null);
+  goog.asserts.assert(mapLayerGroup);
+  this.printNativeAngle_ = !(mapLayerGroup.get('printNativeAngle') === false);
   let layers = this.ngeoLayerHelper_.getFlatLayers(mapLayerGroup);
   layers = layers.slice().reverse();
 
@@ -280,7 +293,11 @@ ngeo.Print.prototype.encodeImageWmsLayer_ = function(arr, layer) {
  * @private
  */
 ngeo.Print.prototype.encodeWmsLayer_ = function(arr, opacity, url, params) {
-  const url_url = new URL(url);
+  let url_url = new URL(url);
+  // work-around to normalize IE11 & Edge ogcserver encoding issue
+  if (this.isMs && url_url.search.indexOf('+')) {
+    url_url = new URL(url_url.origin + url_url.pathname + url_url.search.replace(/\+/g, '%20'));
+  }
   const customParams = {'TRANSPARENT': true};
   if (url_url.searchParams) {
     for (const element of url_url.searchParams) {
@@ -307,7 +324,8 @@ ngeo.Print.prototype.encodeWmsLayer_ = function(arr, opacity, url, params) {
     serverType: params['SERVERTYPE'],
     type: 'wms',
     opacity,
-    version: params['VERSION']
+    version: params['VERSION'],
+    useNativeAngle: this.printNativeAngle_
   });
   arr.push(object);
 };
@@ -747,11 +765,25 @@ ngeo.Print.prototype.encodeTextStyle_ = function(symbolizers, textStyle) {
   const label = textStyle.getText();
   if (label !== undefined) {
     symbolizer.label = label;
+    let xAlign = 'c';
+    let yAlign = 'm';
 
-    const labelAlign = textStyle.getTextAlign();
-    if (labelAlign !== undefined) {
-      symbolizer.labelAlign = labelAlign;
+    const olTextAlign = textStyle.getTextAlign();
+    // 'left', 'right', 'center', 'end' or 'start'.
+    if (olTextAlign === 'left' || olTextAlign === 'start') {
+      xAlign = 'l';
+    } else if (olTextAlign === 'right' || olTextAlign === 'end') {
+      xAlign = 'r';
     }
+
+    const olTextBaseline = textStyle.getTextBaseline();
+    // 'bottom', 'top', 'middle', 'alphabetic', 'hanging' or 'ideographic'
+    if (olTextBaseline === 'bottom') {
+      yAlign = 'l';
+    } else if (olTextBaseline === 'top') {
+      yAlign = 't';
+    }
+    symbolizer.labelAlign = `${xAlign}${yAlign}`;
 
     const labelRotation = textStyle.getRotation();
     if (labelRotation !== undefined) {
@@ -781,7 +813,8 @@ ngeo.Print.prototype.encodeTextStyle_ = function(symbolizers, textStyle) {
       symbolizer.haloOpacity = strokeColorRgba[3];
       const width = strokeStyle.getWidth();
       if (width !== undefined) {
-        symbolizer.haloRadius = width;
+        // Width is a stroke, radius a radius, so divide by 2
+        symbolizer.haloRadius = width / 2;
       }
     }
 

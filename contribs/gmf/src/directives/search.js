@@ -24,6 +24,9 @@ goog.require('ol.style.Stroke');
 goog.require('ol.style.Style');
 goog.require('ol.uri');
 
+goog.require('ngeo.search.searchModule');
+
+gmf.module.requires.push(ngeo.search.searchModule.module.name);
 
 gmf.module.value('gmfSearchTemplateUrl',
   /**
@@ -56,6 +59,7 @@ gmf.module.value('gmfSearchTemplateUrl',
  *        gmf-search-styles="ctrl.searchStyles"
  *        gmf-search-datasources="ctrl.searchDatasources"
  *        gmf-search-coordinatesprojections="ctrl.searchCoordinatesProjections"
+ *        gmf-search-delay="mainCtrl.searchDelay"
  *        gmf-search-clearbutton="true">
  *      </gmf-search>
  *      <script>
@@ -78,7 +82,8 @@ gmf.module.value('gmfSearchTemplateUrl',
  *        gmf-search-styles="ctrl.searchStyles"
  *        gmf-search-datasources="ctrl.searchDatasources"
  *        gmf-search-coordinatesprojections="ctrl.searchCoordinatesProjections"
- *        gmf-search-clearbutton="true">
+ *        gmf-search-clearbutton="true"
+ *        gmf-search-delay="mainCtrl.searchDelay"
  *        gmf-search-colorchooser="true">
  *      </gmf-search>
  *      <script>
@@ -107,6 +112,7 @@ gmf.module.value('gmfSearchTemplateUrl',
  *      defined in ol3). If not provided, only the map's view projection
  *      format will be supported.
  * @htmlAttribute {boolean} gmf-search-clearbutton The clear button.
+ * @htmlAttribute {boolean} gmf-search-delay The bloodhound request delay.
  * @htmlAttribute {boolean} gmf-search-colorchooser Whether to let the user
  *      change the style of the feature on the map. Default is false.
  * @htmlAttribute {ngeox.SearchDirectiveListeners} gmf-search-listeners
@@ -135,6 +141,7 @@ gmf.searchDirective = function(gmfSearchTemplateUrl) {
       'coordinatesProjections': '=?gmfSearchCoordinatesprojections',
       'additionalListeners': '=gmfSearchListeners',
       'maxZoom': '<gmfSearchMaxzoom',
+      'delay': '<gmfSearchDelay',
       'onInitCallback': '&?gmfSearchOnInit'
     },
     controller: 'GmfSearchController as ctrl',
@@ -294,6 +301,12 @@ gmf.SearchController = function($scope, $compile, $timeout, $injector, gettextCa
    * @export
    */
   this.placeholder;
+
+  /**
+   * @type {number}
+   * @export
+   */
+  this.delay = parseInt(this.scope_['delay'], 10) || 50;
 
   /**
    * The maximum zoom we will zoom on result.
@@ -632,7 +645,7 @@ gmf.SearchController.prototype.createAndInitBloodhound_ = function(config,
 gmf.SearchController.prototype.getBloodhoudRemoteOptions_ = function() {
   const gettextCatalog = this.gettextCatalog_;
   return {
-    rateLimitWait: 50,
+    rateLimitWait: this.delay,
     prepare(query, settings) {
       const url = settings.url;
       const lang = gettextCatalog.currentLanguage;
@@ -729,20 +742,30 @@ gmf.SearchController.prototype.getSearchStyle_ = function(feature, resolution) {
   const style = this.styles_[feature.get('layer_name')] || this.styles_['default'];
   if (this.color) {
     const color = ol.color.asArray(this.color);
+
+    const strokeColor = color.slice();
+    // 100% opacity for the stroke color
+    strokeColor[3] = 1;
+
+    const fillColor = color.slice();
+    // 50% opacity for the fill color
+    fillColor[3] = 0.5;
+
     const strokeStyle = style.getStroke();
     if (strokeStyle) {
-      // 100% opacity for the stroke color
-      const strokeColor = color.slice();
-      strokeColor[3] = 1;
       strokeStyle.setColor(strokeColor);
-
-      const fillStyle = style.getFill();
-      if (fillStyle) {
-        // 50% opacity for the fill color
-        const fillColor = color.slice();
-        fillColor[3] = 0.5;
-        fillStyle.setColor(fillColor);
-      }
+    }
+    const fillStyle = style.getFill();
+    if (fillStyle) {
+      fillStyle.setColor(fillColor);
+    }
+    const image = style.getImage();
+    if (image) {
+      style.setImage(new ol.style.Circle({
+        fill: new ol.style.Fill({color: fillColor}),
+        radius: 5,
+        stroke: new ol.style.Stroke({color: strokeColor})
+      }));
     }
   }
   return style;

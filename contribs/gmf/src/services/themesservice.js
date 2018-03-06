@@ -113,9 +113,8 @@ gmf.Themes = function($http, $injector, $q, ngeoLayerHelper, gettextCatalog, gmf
 
   /**
    * @type {boolean}
-   * @private
    */
-  this.loaded_ = false;
+  this.loaded = false;
 
   /**
    * @type {angular.$q.Promise}
@@ -138,11 +137,8 @@ gmf.Themes.findGroupByLayerNodeName = function(themes, name) {
       const group = theme.children[j];
       const childNodes = [];
       gmf.Themes.getFlatNodes(group, childNodes);
-      for (let k = 0, kk = childNodes.length; k < kk; k++) {
-        const layer = childNodes[k];
-        if (layer.name == name) {
-          return group;
-        }
+      if (gmf.Themes.findObjectByName(childNodes, name)) {
+        return group;
       }
     }
   }
@@ -160,7 +156,9 @@ gmf.Themes.findGroupByName = function(themes, name) {
     const theme = themes[i];
     for (let j = 0, jj = theme.children.length; j < jj; j++) {
       const group = theme.children[j];
-      if (group.name == name) {
+      const internalNodes = [];
+      gmf.Themes.getFlatInternalNodes(group, internalNodes);
+      if (gmf.Themes.findObjectByName(internalNodes, name)) {
         return group;
       }
     }
@@ -175,9 +173,8 @@ gmf.Themes.findGroupByName = function(themes, name) {
  * @param {string} objectName The object name.
  * @return {T} The object or null.
  * @template T
- * @private
  */
-gmf.Themes.findObjectByName_ = function(objects, objectName) {
+gmf.Themes.findObjectByName = function(objects, objectName) {
   return ol.array.find(objects, object => object['name'] === objectName);
 };
 
@@ -189,16 +186,33 @@ gmf.Themes.findObjectByName_ = function(objects, objectName) {
  * @return {gmfThemes.GmfTheme} The theme object or null.
  */
 gmf.Themes.findThemeByName = function(themes, themeName) {
-  return gmf.Themes.findObjectByName_(themes, themeName);
+  return gmf.Themes.findObjectByName(themes, themeName);
 };
 
 
 /**
- * Fill the given "nodes" array with all node in the given node including the
- * given node itself.
+ * Fill the given "nodes" array with all internal nodes (non-leaf nones) in
+ * the given node.
+ *
  * @param {gmfThemes.GmfGroup|gmfThemes.GmfLayer} node Layertree node.
  * @param {Array.<gmfThemes.GmfGroup|gmfThemes.GmfLayer>} nodes An array.
- * @export
+ */
+gmf.Themes.getFlatInternalNodes = function(node, nodes) {
+  const children = node.children;
+  if (children !== undefined) {
+    nodes.push(node);
+    for (let i = 0; i < children.length; i++) {
+      gmf.Themes.getFlatInternalNodes(children[i], nodes);
+    }
+  }
+};
+
+
+/**
+ * Fill the given "nodes" array with all leaf nodes in the given node.
+ *
+ * @param {gmfThemes.GmfGroup|gmfThemes.GmfLayer} node Layertree node.
+ * @param {Array.<gmfThemes.GmfGroup|gmfThemes.GmfLayer>} nodes An array.
  */
 gmf.Themes.getFlatNodes = function(node, nodes) {
   let i;
@@ -279,9 +293,11 @@ gmf.Themes.prototype.getBgLayers = function(appDimensions) {
       const server = ogcServers[gmfLayerWMS.ogcServer];
       goog.asserts.assert(server, 'The OGC server was not found');
       goog.asserts.assert(server.url, 'The server URL is required');
+      goog.asserts.assert(server.imageType, 'The server image type is required');
       return callback(gmfLayer, layerHelper.createBasicWMSLayer(
         server.url,
         gmfLayerWMS.layers || '',
+        server.imageType,
         server.type,
         undefined, // time
         gmfLayer.dimensions,
@@ -468,6 +484,44 @@ gmf.Themes.prototype.hasNodeEditableLayers_ = function(node) {
 
 
 /**
+ * Get the maximal resolution defined for this layer. Looks in the
+ *     layer itself before to look into its metadata.
+ * @param {gmfThemes.GmfLayerWMS} gmfLayer the GeoMapFish Layer. WMTS layer is
+ *     also allowed (the type is defined as GmfLayerWMS only to avoid some
+ *     useless tests to know if a maxResolutionHint property can exist
+ *     on the node).
+ * @return {number|undefined} the max resolution or undefined if any.
+ */
+gmf.Themes.getNodeMaxResolution = function(gmfLayer) {
+  const metadata = gmfLayer.metadata;
+  let maxResolution = gmfLayer.maxResolutionHint;
+  if (maxResolution === undefined && metadata !== undefined) {
+    maxResolution = metadata.maxResolution;
+  }
+  return maxResolution;
+};
+
+
+/**
+ * Get the minimal resolution defined for this layer. Looks in the
+ *     layer itself before to look into its metadata.
+ * @param {gmfThemes.GmfLayerWMS} gmfLayer the GeoMapFish Layer. WMTS layer is
+ *     also allowed (the type is defined as GmfLayerWMS only to avoid some
+ *     useless tests to know if a minResolutionHint property can exist
+ *     on the node).
+ * @return {number|undefined} the min resolution or undefined if any.
+ */
+gmf.Themes.getNodeMinResolution = function(gmfLayer) {
+  const metadata = gmfLayer.metadata;
+  let minResolution = gmfLayer.minResolutionHint;
+  if (minResolution === undefined && metadata !== undefined) {
+    minResolution = metadata.minResolution;
+  }
+  return minResolution;
+};
+
+
+/**
  * @param {number=} opt_roleId The role id to send in the request.
  * Load themes from the "themes" service.
  * @export
@@ -476,12 +530,12 @@ gmf.Themes.prototype.loadThemes = function(opt_roleId) {
 
   goog.asserts.assert(this.treeUrl_, 'gmfTreeUrl should be defined.');
 
-  if (this.loaded_) {
+  if (this.loaded) {
     // reload the themes
     this.deferred_ = this.$q_.defer();
     this.promise_ = this.deferred_.promise;
     this.bgLayerPromise_ = null;
-    this.loaded_ = false;
+    this.loaded = false;
   }
 
   this.$http_.get(this.treeUrl_, {
@@ -504,7 +558,7 @@ gmf.Themes.prototype.loadThemes = function(opt_roleId) {
     }
     this.deferred_.resolve(response.data);
     this.dispatchEvent(gmf.ThemesEventType.CHANGE);
-    this.loaded_ = true;
+    this.loaded = true;
   }, (response) => {
     this.deferred_.reject(response);
   });

@@ -73,7 +73,7 @@ ngeo.module.value('ngeoLayertreeTemplateUrl',
  *        gmf-layertree-map="ctrl.map">
  *      </gmf-layertree>
  *
- * You can add an attribute 'gmf-layertree-openlinksinnewwindow="true"' to open
+ * You can add an attribute 'gmf-layertree-openlinksinnewwindow="::true"' to open
  * metadata URLs in a new window. By default, and in the default template,
  * links will be opened in a popup.
  *
@@ -86,8 +86,10 @@ ngeo.module.value('ngeoLayertreeTemplateUrl',
  *  * metadataUrl: Display a popup with the content of the given URL if
  *    possible also open a new window.
  *
- * @htmlAttribute {Object<string, string>|undefined} gmf-layertree-dimensions Global dimensions object.
  * @htmlAttribute {ol.Map} gmf-layertree-map The map.
+ * @htmlAttribute {Object<string, string>|undefined} gmf-layertree-dimensions Global dimensions object.
+ * @htmlAttribute {boolean|undefined} gmf-layertree-openlinksinnewwindow if true, open
+ *     metadataURLs in a new window. Otherwise open them in a popup.
  *
  * @ngdoc component
  * @ngname gmfLayertreeComponent
@@ -97,7 +99,7 @@ gmf.layertreeComponent = {
   bindings: {
     'map': '=gmfLayertreeMap',
     'dimensions': '=?gmfLayertreeDimensions',
-    'openLinksInNewWindowFn': '&gmfLayertreeOpenlinksinnewwindow'
+    'openLinksInNewWindow': '<?gmfLayertreeOpenlinksinnewwindow'
   },
   template: gmfLayertreeTemplate
 };
@@ -226,12 +228,6 @@ gmf.LayertreeController = function($element, $http, $sce, $scope, ngeoCreatePopu
   this.groupNodeStates_ = {};
 
   /**
-   * @type {function()|undefined}
-   * @export
-   */
-  this.openLinksInNewWindowFn;
-
-  /**
    * @type {boolean|undefined}
    * @export
    */
@@ -272,7 +268,7 @@ gmf.LayertreeController = function($element, $http, $sce, $scope, ngeoCreatePopu
  * Init the controller,
  */
 gmf.LayertreeController.prototype.$onInit = function() {
-  this.openLinksInNewWindow = this.openLinksInNewWindowFn() === true ? true : false;
+  this.openLinksInNewWindow = this.openLinksInNewWindow === true;
   this.dataLayerGroup_ = this.layerHelper_.getGroupFromMap(this.map,
     gmf.DATALAYERGROUP_NAME);
 
@@ -326,6 +322,8 @@ gmf.LayertreeController.prototype.updateLayerDimensions_ = function(layer, node)
         if (value !== undefined) {
           dimensions[key] = value;
         }
+      } else {
+        dimensions[key] = node.dimensions[key];
       }
     }
     if (!ol.obj.isEmpty(dimensions)) {
@@ -392,25 +390,6 @@ gmf.LayertreeController.prototype.listeners = function(scope, treeCtrl) {
     dataLayerGroup.getLayers().remove(treeCtrl.layer);
   });
 };
-
-
-/**
- * Return 'out-of-resolution' if the current resolution of the map is out of
- * the min/max resolution in the node.
- * @param {gmfThemes.GmfLayerWMS} gmfLayerWMS the GeoMapFish Layer WMS.
- * @return {string|undefined} 'out-of-resolution' or undefined.
- * @export
- */
-gmf.LayertreeController.prototype.getResolutionStyle = function(gmfLayerWMS) {
-  let style;
-  const resolution = this.map.getView().getResolution();
-  if (gmfLayerWMS.minResolutionHint !== undefined && resolution < gmfLayerWMS.minResolutionHint ||
-      gmfLayerWMS.maxResolutionHint !== undefined && resolution > gmfLayerWMS.maxResolutionHint) {
-    style = 'out-of-resolution';
-  }
-  return style;
-};
-
 
 /**
  * Toggle the state of treeCtrl's node.
@@ -510,38 +489,62 @@ gmf.LayertreeController.prototype.getLegendIconURL = function(treeCtrl) {
 
 
 /**
- * Get the legend URL for the given treeCtrl.
+ * Get the legends object (<LayerName: url> for each layer) for the given treeCtrl.
  * @param {ngeo.LayertreeController} treeCtrl ngeo layertree controller, from
  *     the current node.
- * @return {string|undefined} The legend URL or undefined.
+ * @return {Object.<string, string>} A <layerName: url> object that provides a
+ *     layer for each layer.
  * @export
  */
-gmf.LayertreeController.prototype.getLegendURL = function(treeCtrl) {
+gmf.LayertreeController.prototype.getLegendsObject = function(treeCtrl) {
+  const legendsObject = {};
   if (/** @type gmfThemes.GmfGroup */ (treeCtrl.node).children !== undefined) {
-    return undefined;
+    return null;
   }
 
   const gmfLayer = /** @type {gmfThemes.GmfLayer} */ (treeCtrl.node);
-  let layersNames;
-
+  const gmfLayerDefaultName = gmfLayer.name;
   if (gmfLayer.metadata.legendImage) {
-    return gmfLayer.metadata.legendImage;
+    legendsObject[gmfLayerDefaultName] = gmfLayer.metadata.legendImage;
+    return legendsObject;
   }
 
   const layer = treeCtrl.layer;
-  if (gmfLayer.type === 'WMTS' && layer) {
+  if (gmfLayer.type === 'WMTS') {
     goog.asserts.assertInstanceof(layer, ol.layer.Tile);
-    return this.layerHelper_.getWMTSLegendURL(layer);
+    const wmtsLegendURL = this.layerHelper_.getWMTSLegendURL(layer);
+    legendsObject[gmfLayerDefaultName] = wmtsLegendURL;
+    return wmtsLegendURL ? legendsObject : null;
   } else {
     const gmfLayerWMS = /** @type {gmfThemes.GmfLayerWMS} */ (gmfLayer);
-    layersNames = gmfLayerWMS.layers.split(',');
-    if (layersNames.length > 1) {
-      // not supported, the administrator should give a legendImage metadata
-      return undefined;
-    }
+    let layersNames = gmfLayerWMS.layers;
     const gmfOgcServer = this.gmfTreeManager_.getOgcServer(treeCtrl);
-    return this.layerHelper_.getWMSLegendURL(gmfOgcServer.url, layersNames[0], this.getScale_());
+    const scale = this.getScale_();
+    // QGIS can handle multiple layers natively. Use Mutliple urls for other map
+    // servers
+    if (gmfOgcServer.type === ngeo.DataSource.OGCServerType.QGISSERVER) {
+      layersNames = [layersNames];
+    } else {
+      layersNames = layersNames.split(',');
+    }
+    layersNames.forEach((layerName) => {
+      legendsObject[layerName] = this.layerHelper_.getWMSLegendURL(gmfOgcServer.url, layerName, scale);
+    });
+    return legendsObject;
   }
+};
+
+
+/**
+ * Get the number of legends object for this layertree controller.
+ * @param {ngeo.LayertreeController} treeCtrl ngeo layertree controller, from
+ *     the current node.
+ * @return {number} The number of Legends object.
+ * @export
+ */
+gmf.LayertreeController.prototype.getNumberOfLegendsObject = function(treeCtrl) {
+  const legendsObject = this.getLegendsObject(treeCtrl);
+  return legendsObject ? Object.keys(legendsObject).length : 0;
 };
 
 
@@ -646,6 +649,29 @@ gmf.LayertreeController.prototype.nodesCount = function() {
   return this.gmfTreeManager_.root.children.length;
 };
 
+/**
+ * Return 'out-of-resolution' if the current resolution of the map is out of
+ * the min/max resolution in the node.
+ * @param {gmfThemes.GmfLayerWMS} gmfLayer the GeoMapFish Layer. WMTS layer is
+ *     also allowed (the type is defined as GmfLayerWMS only to avoid some
+ *     useless tests to know if a minResolutionHint property can exist
+ *     on the node).
+ * @return {string|undefined} 'out-of-resolution' or undefined.
+ * @export
+ */
+gmf.LayertreeController.prototype.getResolutionStyle = function(gmfLayer) {
+  const resolution = this.map.getView().getResolution();
+  const minResolution = gmf.Themes.getNodeMinResolution(gmfLayer);
+  if (minResolution !== undefined && resolution < minResolution) {
+    return 'out-of-resolution';
+  }
+  const maxResolution = gmf.Themes.getNodeMaxResolution(gmfLayer);
+  if (maxResolution !== undefined && resolution > maxResolution) {
+    return 'out-of-resolution';
+  }
+  return undefined;
+};
+
 
 /**
  * Set the resolution of the map with the max or min resolution of the node.
@@ -657,11 +683,14 @@ gmf.LayertreeController.prototype.zoomToResolution = function(treeCtrl) {
   const gmfLayer = /** @type {gmfThemes.GmfLayerWMS} */ (treeCtrl.node);
   const view = this.map.getView();
   const resolution = view.getResolution();
-  if (gmfLayer.minResolutionHint !== undefined && resolution < gmfLayer.minResolutionHint) {
-    view.setResolution(view.constrainResolution(gmfLayer.minResolutionHint, 0, 1));
-  }
-  if (gmfLayer.maxResolutionHint !== undefined && resolution > gmfLayer.maxResolutionHint) {
-    view.setResolution(view.constrainResolution(gmfLayer.maxResolutionHint, 0, -1));
+  const minResolution = gmf.Themes.getNodeMinResolution(gmfLayer);
+  if (minResolution !== undefined && resolution < minResolution) {
+    view.setResolution(view.constrainResolution(minResolution, 0, 1));
+  } else {
+    const maxResolution = gmf.Themes.getNodeMaxResolution(gmfLayer);
+    if (maxResolution !== undefined && resolution > maxResolution) {
+      view.setResolution(view.constrainResolution(maxResolution, 0, -1));
+    }
   }
 };
 

@@ -56,7 +56,8 @@
         gmf-search-clearbutton="true"
         gmf-search-placeholder="{{'Search…'|translate}}"
         gmf-search-coordinatesprojections="mainCtrl.searchCoordinatesProjections"
-        gmf-search-listeners="::mainCtrl.searchListeners">
+        gmf-search-listeners="::mainCtrl.searchListeners"
+        gmf-search-delay="mainCtrl.searchDelay">
       </gmf-search>
       <button class="gmf-mobile-nav-trigger gmf-mobile-nav-right-trigger"
         ng-click="mainCtrl.toggleRightNavVisibility()">
@@ -76,7 +77,9 @@
         <gmf-disclaimer gmf-disclaimer-map="::mainCtrl.map"></gmf-disclaimer>
         <div class="alert alert-info alert-dismissible fade in hidden-xs" role="alert">
           <button type="button" class="close" data-dismiss="alert" aria-label="{{'Close' | translate }}"><span aria-hidden="true" class="fa fa-times"></span></button>
-          <span>{{"You're using the mobile application. Check out the" | translate }} <a href="http://camptocamp.github.io/ngeo/master/examples/contribs/gmf/apps/desktop/?no_redirect">{{'standard application' | translate}}</a>.</span>
+          <span translate
+            translate-params-url="'http://camptocamp.github.io/ngeo/master/examples/contribs/gmf/apps/desktop/?no_redirect'">
+            You're using the mobile application. Check out the <a href="{{url}}">standard application</a>.</span>
         </div>
       </div>
     </main>
@@ -97,7 +100,7 @@
         <gmf-layertree
           gmf-layertree-dimensions="mainCtrl.dimensions"
           gmf-layertree-map="::mainCtrl.map"
-          gmf-layertree-openlinksinnewwindow="true">
+          gmf-layertree-openlinksinnewwindow="::true">
         </gmf-layertree>
       </div>
       <gmf-backgroundlayerselector
@@ -158,6 +161,7 @@
     </nav>
     <script src="../../../../node_modules/jquery/dist/jquery.js"></script>
     <script src="../../../../third-party/jquery-ui/jquery-ui.js"></script>
+    <script src="../../../../node_modules/jquery-datetimepicker/build/jquery.datetimepicker.full.js"></script>
     <script src="../../../../node_modules/angular/angular.js"></script>
     <script src="../../../../node_modules/angular-animate/angular-animate.js"></script>
     <script src="../../../../node_modules/angular-sanitize/angular-sanitize.js"></script>
@@ -175,6 +179,7 @@
     <script src="../../../../node_modules/d3/build/d3.js"></script>
     <script src="../../../../node_modules/moment/moment.js"></script>
     <script src="../../../../node_modules/file-saver/FileSaver.js"></script>
+    <script src="../../../../node_modules/url-polyfill/url-polyfill.js"></script>
     <script src="/@?main=mobile/js/controller.js"></script>
     <script src="default.js"></script>
     <script src="../../../../utils/watchwatchers.js"></script>
@@ -201,10 +206,10 @@
         module.constant('defaultLang', 'en');
         module.constant('langUrls', langUrls);
         module.constant('cacheVersion', cacheVersion);
-        module.constant('authenticationBaseUrl', 'https://geomapfish-demo.camptocamp.net/2.1/wsgi');
-        module.constant('fulltextsearchUrl', 'https://geomapfish-demo.camptocamp.net/2.1/wsgi/fulltextsearch?limit=20&interface=mobile');
-        module.constant('gmfTreeUrl', 'https://geomapfish-demo.camptocamp.net/2.1/wsgi/themes?version=2&background=background&interface=mobile');
-        module.constant('gmfRasterUrl', 'https://geomapfish-demo.camptocamp.net/2.1/wsgi/raster');
+        module.constant('authenticationBaseUrl', 'https://geomapfish-demo.camptocamp.net/2.2/wsgi');
+        module.constant('fulltextsearchUrl', 'https://geomapfish-demo.camptocamp.net/2.2/wsgi/fulltextsearch?limit=20&interface=mobile');
+        module.constant('gmfTreeUrl', 'https://geomapfish-demo.camptocamp.net/2.2/wsgi/themes?version=2&background=background&interface=mobile');
+        module.constant('gmfRasterUrl', 'https://geomapfish-demo.camptocamp.net/2.2/wsgi/raster');
         module.constant('gmfShortenerCreateUrl', '');
         module.constant('gmfSearchGroups', []);
         // Requires that the gmfSearchGroups is specified

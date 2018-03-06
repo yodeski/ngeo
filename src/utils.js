@@ -1,5 +1,6 @@
 goog.provide('ngeo.utils');
 
+goog.require('ol.events.condition');
 goog.require('ol.geom.LineString');
 goog.require('ol.geom.MultiPoint');
 goog.require('ol.geom.MultiLineString');
@@ -100,11 +101,17 @@ ngeo.utils.encodeQueryString = function(queryData) {
   const queryItem = [];
   for (const key in queryData) {
     const value = queryData[key];
-    if (value) {
-      queryItem.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-    } else {
-      queryItem.push(encodeURIComponent(key));
-    }
+    queryItem.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
   }
   return queryItem.join('&');
+};
+
+
+/**
+ * Delete condition passed to the modify interaction
+ * @param {ol.MapBrowserEvent} event Browser event.
+ * @return {boolean} The result.
+ */
+ngeo.utils.deleteCondition = function(event) {
+  return ol.events.condition.noModifierKeys(event) && ol.events.condition.singleClick(event);
 };

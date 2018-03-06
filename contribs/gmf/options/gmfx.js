@@ -52,7 +52,8 @@ gmfx.ComparisonFilter.prototype.value;
  *    geolocationZoom: (number|undefined),
  *    mapViewConfig: (olx.ViewOptions|undefined),
  *    mapControls: (ol.Collection.<ol.control.Control>|Array.<ol.control.Control>|undefined),
- *    mapInteractions: (ol.Collection.<ol.interaction.Interaction>|Array.<ol.interaction.Interaction>|undefined)
+ *    mapInteractions: (ol.Collection.<ol.interaction.Interaction>|Array.<ol.interaction.Interaction>|undefined),
+ *    mapPixelRatio: (number|undefined)
  * }}
  */
 gmfx.Config;
@@ -104,8 +105,8 @@ gmfx.GridSource.prototype.source;
  * Configuration option for {@link gmf.displayquerygridComponent} to merge
  * grid tabs.
  *
- * E.g. `'my_merged_source': ['123', '234']}` merges the sources with id `123`
- * and `234` into a new source `my_merged_source`.
+ * E.g. `'two_wheels_park': ['velo_park', 'moto_park']}` merges the sources
+ * with label `velo_park` and `moto_park` into a new source `two_wheels_park`.
  *
  * @typedef {Object<string, Array.<string>>}
  */

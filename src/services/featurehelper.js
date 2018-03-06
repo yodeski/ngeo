@@ -197,61 +197,83 @@ ngeo.FeatureHelper.prototype.getStyle = function(feature) {
 
 /**
  * @param {!ol.Feature} feature Feature with linestring geometry.
- * @return {!ol.style.Style} Style.
+ * @return {!Array.<!ol.style.Style>} Style.
  * @private
  */
 ngeo.FeatureHelper.prototype.getLineStringStyle_ = function(feature) {
-
   const strokeWidth = this.getStrokeProperty(feature);
+  const showLabel = this.getShowLabelProperty(feature);
   const showMeasure = this.getShowMeasureProperty(feature);
   const color = this.getRGBAColorProperty(feature);
 
-  const options = {
+  const styles = [new ol.style.Style({
     stroke: new ol.style.Stroke({
       color,
       width: strokeWidth
     })
-  };
-
+  })];
+  //Label Style
+  const textLabelValues = [];
   if (showMeasure) {
-    options.text = this.createTextStyle_({
-      text: this.getMeasure(feature)
-    });
+    textLabelValues.push(this.getMeasure(feature));
   }
-
-  return new ol.style.Style(options);
+  if (showLabel) {
+    textLabelValues.push(this.getNameProperty(feature));
+  }
+  if (showLabel ||  showMeasure) {
+    // display both label using  \n
+    const textLabelValue = textLabelValues.join('\n');
+    styles.push(new ol.style.Style({
+      text: this.createTextStyle_({
+        text: textLabelValue
+      })
+    }));
+  }
+  return styles;
 };
 
 
 /**
  * @param {!ol.Feature} feature Feature with point geometry.
- * @return {!ol.style.Style} Style.
+ * @return {!Array.<!ol.style.Style>} Style.
  * @private
  */
 ngeo.FeatureHelper.prototype.getPointStyle_ = function(feature) {
-
   const size = this.getSizeProperty(feature);
   const color = this.getRGBAColorProperty(feature);
-
-  const options = {
+  const showLabel = this.getShowLabelProperty(feature);
+  const showMeasure = this.getShowMeasureProperty(feature);
+  const styles = [new ol.style.Style({
     image: new ol.style.Circle({
       radius: size,
       fill: new ol.style.Fill({
         color
       })
     })
-  };
-
-  const showMeasure = this.getShowMeasureProperty(feature);
-
+  })];
+  // Label Style
+  const textLabelValues = [];
   if (showMeasure) {
-    options.text = this.createTextStyle_({
-      text: this.getMeasure(feature),
-      offsetY: -(size + 10 / 2 + 4)
-    });
+    textLabelValues.push(this.getMeasure(feature));
   }
-
-  return new ol.style.Style(options);
+  if (showLabel) {
+    textLabelValues.push(this.getNameProperty(feature));
+  }
+  if (showLabel ||  showMeasure) {
+    // display both label using  \n
+    const textLabelValue = textLabelValues.join('\n');
+    const font_size = 10;
+    // https://reeddesign.co.uk/test/points-pixels.html
+    const point_to_px = 1.3;
+    styles.push(new ol.style.Style({
+      text: this.createTextStyle_({
+        text: textLabelValue,
+        size: font_size,
+        offsetY: -(size + (font_size / 2) * textLabelValues.length * point_to_px + 4)
+      })
+    }));
+  }
+  return styles;
 };
 
 
@@ -299,12 +321,11 @@ ngeo.FeatureHelper.prototype.getNumber = function(feature, attrib) {
  * @private
  */
 ngeo.FeatureHelper.prototype.getPolygonStyle_ = function(feature) {
-
   const strokeWidth = this.getStrokeProperty(feature);
   const opacity = this.getOpacityProperty(feature);
   const color = this.getRGBAColorProperty(feature);
+  const showLabel = this.getShowLabelProperty(feature);
   const showMeasure = this.getShowMeasureProperty(feature);
-
 
   // fill color with opacity
   const fillColor = color.slice();
@@ -321,8 +342,7 @@ ngeo.FeatureHelper.prototype.getPolygonStyle_ = function(feature) {
       width: strokeWidth
     })
   })];
-
-  if (showMeasure) {
+  if (showMeasure || showLabel) {
     if (azimut !== undefined) {
       // Radius style:
       const line = this.getRadiusLine(feature, azimut);
@@ -355,14 +375,27 @@ ngeo.FeatureHelper.prototype.getPolygonStyle_ = function(feature) {
         })
       }));
     } else {
-      styles.push(new ol.style.Style({
-        text: this.createTextStyle_({
-          text: this.getMeasure(feature)
-        })
-      }));
+      //Label Style
+      const textLabelValues = [];
+      if (showMeasure) {
+        textLabelValues.push(this.getMeasure(feature));
+      }
+      if (showLabel) {
+        textLabelValues.push(this.getNameProperty(feature));
+      }
+      if (showLabel ||  showMeasure) {
+        // display both label using  \n
+        const textLabelValue = textLabelValues.join('\n');
+        styles.push(new ol.style.Style({
+          text: this.createTextStyle_({
+            text: textLabelValue,
+            offsetY: -(8 / 2 + 4),
+            exceedLength: true
+          })
+        }));
+      }
     }
   }
-
   return styles;
 };
 
@@ -379,7 +412,8 @@ ngeo.FeatureHelper.prototype.getTextStyle_ = function(feature) {
       text: this.getNameProperty(feature),
       size: this.getSizeProperty(feature),
       angle: this.getAngleProperty(feature),
-      color: this.getRGBAColorProperty(feature)
+      color: this.getRGBAColorProperty(feature),
+      width: this.getStrokeProperty(feature)
     })
   });
 };
@@ -603,14 +637,16 @@ ngeo.FeatureHelper.prototype.getHaloStyle_ = function(feature) {
 /**
  * Delete the unwanted ol3 properties from the current feature then return the
  * properties.
+ * Also delete the 'ngeo_feature_type_' from the ngeo query system.
  * @param {!ol.Feature} feature Feature.
  * @return {!Object.<string, *>} Filtered properties of the current feature.
  * @export
  */
-ngeo.FeatureHelper.prototype.getFilteredFeatureValues = function(feature) {
+ngeo.FeatureHelper.getFilteredFeatureValues = function(feature) {
   const properties = feature.getProperties();
   delete properties['boundedBy'];
   delete properties[feature.getGeometryName()];
+  delete properties['ngeo_feature_type_'];
   return properties;
 };
 
@@ -689,6 +725,20 @@ ngeo.FeatureHelper.prototype.getShowMeasureProperty = function(feature) {
   return goog.asserts.assertBoolean(showMeasure);
 };
 
+/**
+ * @param {!ol.Feature} feature Feature.
+ * @return {boolean} Show feature label.
+ * @export
+ */
+ngeo.FeatureHelper.prototype.getShowLabelProperty = function(feature) {
+  let showLabel = feature.get(ngeo.FeatureProperties.SHOW_LABEL);
+  if (showLabel === undefined) {
+    showLabel = false;
+  } else if (typeof showLabel === 'string') {
+    showLabel = (showLabel === 'true') ? true : false;
+  }
+  return goog.asserts.assertBoolean(showLabel);
+};
 
 /**
  * @param {!ol.Feature} feature Feature.

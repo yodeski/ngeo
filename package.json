@@ -1,6 +1,6 @@
 {
   "name": "ngeo",
-  "version": "2.2.0",
+  "version": "2.2.2",
   "description": "AngularJS OpenLayers Library",
   "scripts": {
     "prepublish": "make -f npm.mk install"
@@ -33,7 +33,7 @@
     "async": "2.5.0",
     "bootstrap": "3.3.7",
     "clean-css-cli": "4.1.6",
-    "closure-util": "camptocamp/closure-util#487fac6",
+    "@camptocamp/closure-util": "1.23.0",
     "console-control-strings": "1.1.0",
     "corejs-typeahead": "1.1.1",
     "coveralls": "2.13.1",
@@ -47,7 +47,8 @@
     "gaze": "1.1.2",
     "jasmine-core": "2.7.0",
     "jquery": "3.2.1",
-    "jsdoc": "3.4.3",
+    "jquery-datetimepicker": "2.5.16",
+    "jsdoc": "3.5.5",
     "jsdom": "9.12.0",
     "jsts": "1.4.0",
     "karma": "1.6.0",
@@ -59,13 +60,16 @@
     "less-plugin-clean-css": "1.5.1",
     "moment": "2.18.1",
     "nomnom": "1.8.1",
-    "openlayers": "4.3.1",
+    "openlayers": "4.5.0",
+    "ol-cesium": "1.33",
+    "@camptocamp/cesium": "1.39",
     "phantomjs-prebuilt": "2.1.14",
     "proj4": "2.4.3",
     "svg2ttf": "4.1.0",
     "temp": "0.8.3",
     "ttf2eot": "2.0.0",
     "ttf2woff": "2.0.1",
+    "url-polyfill": "1.0.8",
     "walk": "2.3.9"
   }
 }
