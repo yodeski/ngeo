@@ -1,13 +1,16 @@
-goog.provide('app.datetimepicker');
+/**
+ * @module app.datetimepicker
+ */
+const exports = {};
 
-// webpack: import './datetimepicker.css';
-// webpack: import './common_dependencies.js';
-goog.require('ngeo.misc.datetimepickerComponent');
+import './datetimepicker.css';
+import './common_dependencies.js';
+import ngeoMiscDatetimepickerComponent from 'ngeo/misc/datetimepickerComponent.js';
 
 
 /** @type {!angular.Module} **/
-app.datetimepicker.module = angular.module('app', [
-  ngeo.misc.datetimepickerComponent.name,
+exports.module = angular.module('app', [
+  ngeoMiscDatetimepickerComponent.name,
 ]);
 
 
@@ -15,7 +18,7 @@ app.datetimepicker.module = angular.module('app', [
  * @constructor
  * @ngInject
  */
-app.datetimepicker.MainController = function() {
+exports.MainController = function() {
 
   /**
    * @type {string}
@@ -38,4 +41,7 @@ app.datetimepicker.MainController = function() {
 };
 
 
-app.datetimepicker.module.controller('MainController', app.datetimepicker.MainController);
+exports.module.controller('MainController', exports.MainController);
+
+
+export default exports;

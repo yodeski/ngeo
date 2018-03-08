@@ -1,13 +1,14 @@
+/**
+ * @module app
+ */
+const exports = {};
 /*eslint valid-jsdoc: 0 */
+import ngeoMainmodule from 'ngeo/mainmodule.js';
 
-goog.provide('app');
-
-goog.require('ngeo.mainmodule');
-
-const module = app.module = angular.module('app', []);
+const module = exports.module = angular.module('app', []);
 
 beforeEach(() =>  {
-  module.requires.push(ngeo.mainmodule.name);
+  module.requires.push(ngeoMainmodule.name);
 });
 
 beforeEach(angular.mock.module('app'));
@@ -51,3 +52,6 @@ beforeEach(() => {
     }
   });
 });
+
+
+export default exports;

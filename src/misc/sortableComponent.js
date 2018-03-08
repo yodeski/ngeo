@@ -1,12 +1,12 @@
-goog.provide('ngeo.misc.sortableComponent');
-
-goog.require('goog.asserts');
-
+/**
+ * @module ngeo.misc.sortableComponent
+ */
+import googAsserts from 'goog/asserts.js';
 
 /**
  * @type {!angular.Module}
  */
-ngeo.misc.sortableComponent = angular.module('ngeoSortable', []);
+const exports = angular.module('ngeoSortable', []);
 
 
 /**
@@ -51,7 +51,7 @@ ngeo.misc.sortableComponent = angular.module('ngeoSortable', []);
  * @ngdoc directive
  * @ngname ngeoSortable
  */
-ngeo.misc.sortableComponent.component_ = function($timeout) {
+exports.component_ = function($timeout) {
   return {
     restrict: 'A',
     /**
@@ -63,7 +63,7 @@ ngeo.misc.sortableComponent.component_ = function($timeout) {
 
       const sortable = /** @type {Array} */
               (scope.$eval(attrs['ngeoSortable'])) || [];
-      goog.asserts.assert(Array.isArray(sortable));
+      googAsserts.assert(Array.isArray(sortable));
 
       scope.$watchCollection(() => sortable, () => {
         sortable.length && $timeout(resetUpDragDrop, 0);
@@ -153,4 +153,7 @@ ngeo.misc.sortableComponent.component_ = function($timeout) {
   };
 };
 
-ngeo.misc.sortableComponent.directive('ngeoSortable', ngeo.misc.sortableComponent.component_);
+exports.directive('ngeoSortable', exports.component_);
+
+
+export default exports;
