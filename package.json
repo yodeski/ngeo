@@ -6,7 +6,12 @@
     "prepublish": "make -f npm.mk install",
     "serve-ngeo-examples": "NODE_ENV=dev TARGET=ngeo-examples webpack --watch & serve .build/examples-hosted/",
     "serve-gmf-examples": "NODE_ENV=dev TARGET=gmf-examples webpack --watch & serve .build/examples-hosted/contribs/gmf/",
-    "serve-gmf-apps": "NODE_ENV=dev TARGET=gmf-apps webpack --watch & serve .build/contribs-gmf-apps/"
+    "serve-gmf-apps": "NODE_ENV=dev TARGET=gmf-apps webpack --watch & serve .build/contribs-gmf-apps/",
+    "build-index": "node buildtools/generate-index.js",
+    "presrc-closure": "npm run build-index",
+    "src-closure": "babel -q --out-dir build/src-closure src/",
+    "pretypecheck": "npm run src-closure",
+    "typecheck": "node buildtools/typecheck"
   },
   "repository": {
     "type": "git",
@@ -59,6 +64,7 @@
     "font-awesome": "4.7.0",
     "fs-extra": "5.0.0",
     "gaze": "1.1.2",
+    "google-closure-compiler": "20180101.0.0",
     "google-closure-library": "20180204.0.0",
     "googshift": "0.9.10",
     "html-loader": "0.5.5",
