@@ -8,7 +8,9 @@
     "build-gmf-apps": "TARGET=gmf-apps webpack --progress --debug",
     "serve-ngeo-examples": "DEV_SERVER=1 TARGET=ngeo-examples webpack-dev-server --port 3000 --progress --watch --bail --debug",
     "serve-gmf-examples": "DEV_SERVER=1 TARGET=gmf-examples webpack-dev-server --port 3000 --progress --watch --bail --debug",
-    "serve-gmf-apps": "DEV_SERVER=1 TARGET=gmf-apps webpack-dev-server --port 3000 --progress --watch --bail --debug"
+    "serve-gmf-apps": "DEV_SERVER=1 TARGET=gmf-apps webpack-dev-server --port 3000 --progress --watch --bail --debug",
+    "typecheck": "tsc --pretty",
+    "doc": "typedoc --out doc"
   },
   "repository": {
     "type": "git",
@@ -29,6 +31,8 @@
     "@camptocamp/babel-plugin-angularjs-annotate": "0.8.2",
     "@camptocamp/cesium": "1.48.0",
     "@fortawesome/fontawesome-free": "5.3.1",
+    "@types/d3": "5.0.0",
+    "@types/ol": "4.6.2",
     "angular": "1.7.4",
     "angular-animate": "1.7.4",
     "angular-dynamic-locale": "0.1.37",
@@ -105,6 +109,8 @@
     "svg-inline-loader": "0.8.0",
     "svgo": "1.0.5",
     "svgo-loader": "2.1.0",
+    "typedoc": "git://github.com/gberaudo/typedoc#typescript-3.1.x",
+    "typescript": "3.1.0-dev.20180905",
     "uglify-js": "3.4.9",
     "uglifyjs-webpack-plugin": "1.3.0",
     "url-loader": "1.1.1",
